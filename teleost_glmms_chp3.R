@@ -107,9 +107,8 @@ gerr.bf<-gbm.bfcheck(samples,resvar=c('Gerreidae')) ## 0.009, extremely low. sho
 	sw_species1<-readRDS('model_RDS/SW_Species_brt_tc9_lr001_gaussian.RDS')
 	summary(sw_species1)
 
-	# extract the data on relative influence of each variable. and plot it. 
+# extract the data on relative influence of each variable. and plot it. 
 	hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prop_brs'='Prop. of Bare Sand','prop_ldsg'='Prop. of \n\ Low Density \n\ Seagrass','prop_medsg'='Prop. of  \n\ Medium Density \n\ Seagrass','prop_hdsg'='Prop. of  \n\ High Density \n\ Seagrass','prop_sarg'='Prop. of Sargassum','prop_urb_r'='Prop. of \n\ Urban & Rocky','prop_deep'='Prop. of \n\ Deep Water'))
-	
 	infl.swsp<-sw_species1$contributions
 	swspp.relinf<-infl.swsp%>%mutate(var=fct_reorder(var,rel.inf))%>%ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+geom_bar(stat='identity')+scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,35),guide='none')+theme_bw()+coord_flip()+scale_x_discrete(labels=hab.labels)+ylab('Relative Influence')+xlab(NULL)
 		#ggsave(swspp.relinf,file='relative_influence_vars_in_SWsppBRT_feb23.png',device='png',units='in',height=6,width=8,dpi=900)
@@ -123,66 +122,111 @@ fittedfx.swspp1<-gbm.plot(sw_species1, plot.layout=c(3,3),write.title=FALSE)
 	# these can be misleading based on the distirbution of observations (can give the wrong indication of what different values of predictor do to the response if the data is sparse at certain predictor values)
 	# the next plot function, gbm.plot.fits, can help investgate if this is the case.
 
-	# you can just save these as the base R plot. Or you can export the values from the fittedfx... and plot them in ggplot2. 
+	# use base R save functionto save this. 
+	names(fittedfx.swspp1)
+
+
 
 gbm.plot.fits(sw_species1)
 	# this plots the fitted values irt their predictor
 	# in this data set (BRUVS, SW_Species) you can see that there are a lot of zeros, but otherwise many variables have a good spread of fitted values across the range for each predictor. 
 	# above each graph is a 'wtm' value. This is the 'weighted mean' of the fitted values in relation to each non-factor predictor. 
+	# extract the fitted values and plot them
+		a1<-plot(sw_species1,'dist2shore',return.grid=TRUE)
+		a2<-plot(sw_species1,'prop_brs',return.grid=TRUE)
+		a3<-plot(sw_species1,'prop_ldsg',return.grid=TRUE)
+		a4<-plot(sw_species1,'prop_medsg',return.grid=TRUE)
+		a5<-plot(sw_species1,'prop_hdsg',return.grid=TRUE)
+		a6<-plot(sw_species1,'prop_sarg',return.grid=TRUE)
+		a7<-plot(sw_species1,'prop_urb_r',return.grid=TRUE)
+		a8<-plot(sw_species1,'prop_deep',return.grid=TRUE)
+		a9<-plot(sw_species1,'Season',return.grid=TRUE)
+		hab.colors<-c('prop_brs'='navy','prop_ldsg'='violetred4','prop_medsg'='cadetblue4','prop_hdsg'='cadetblue3','prop_sarg'='goldenrod3','prop_urb_r'='orange3','prop_deep'='hotpink2')	
+		hab.labels.nodist<-(c('prop_brs'='Bare Sand','prop_ldsg'='Low Density Seagrass','prop_medsg'='Medium Density Seagrass','prop_hdsg'=' High Density Seagrass','prop_sarg'='Sargassum','prop_urb_r'='Urban & Rocky','prop_deep'=' Deep Water'))
+		swspp_fittedvalues<-ggplot()+scale_x_continuous(limits=c(0,1))+scale_y_continuous(limits=c(0.9,1.3))+geom_line(data=a2,aes(x=prop_brs,y=y,col='prop_brs',),lwd=1)+geom_line(data=a3,aes(x=prop_ldsg,y=y,col='prop_ldsg'),lwd=1)+geom_line(data=a4,aes(x=prop_medsg,y=y,col='prop_medsg'),lwd=1)+geom_line(data=a5,aes(x=prop_hdsg,y=y,col='prop_hdsg'),lwd=1)+geom_line(data=a6,aes(x=prop_sarg,y=y,col='prop_sarg'),lwd=1)+geom_line(data=a7,aes(x=prop_urb_r,y=y,col='prop_urb_r'),lwd=1)	+geom_line(data=a8,aes(x=prop_deep,y=y,col='prop_deep'),lwd=1)+scale_color_manual(values=hab.colors,labels=hab.labels.nodist)+labs(x='Proportion',y='Fitted value',color='Habitat Type')+theme_bw()
+		ggsave(swspp_fittedvalues,file='swspp_fittedvalues_proportionHabTypes_BRT_feb23.png',device='png',unit='in',height=6,width=9,dpi=800)
 
 ## Interactions - investgate if pairwise interactiosn exits in the data as modelled by the BRT. And then you can plot them. 
 
-find.int.swspp<-gbm.interactions(sw_species1) # run the function
-find.int.swspp$interactions # print the interacton matrix
-find.int.swspp$rank.list # prints just the list of non-zero interactions. Make these into flextables. 
-swpp.interactions<-find.int.swspp$rank.list%>%dplyr::select(var1.names,var2.names,int.size)%>%rename('Variable 1'='var1.names','Variable 2' = 'var2.names','Size of Interaction'=int.size)%>%flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
-	save_as_image(swpp.interactions,'interactions_above05_SWsppBRT_feb23.png',webshot='webshot')
+	find.int.swspp<-gbm.interactions(sw_species1) # run the function, calculates
+	find.int.swspp$interactions # print the interacton matrix
+	find.int.swspp$rank.list # prints just the list of non-zero interactions. Make these into flextables. 
+	# make a table from it 
+	swpp.interactions<-find.int.swspp$rank.list%>%dplyr::select(var1.names,var2.names,int.size)%>%rename('Variable 1'='var1.names','Variable 2' = 'var2.names','Size of Interaction'=int.size)%>%flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
+		save_as_image(swpp.interactions,'interactions_above05_SWsppBRT_feb23.png',webshot='webshot')
  
-swspp_intx_distandmedsg<-gbm.perspec(sw_species1,9,4) # plot pairwise interactions one at a time (or rather 2 covariates at a time with the response). Numbers correspond to the variables (easy way to identify them is the rank.list call from above). This also provides the maxmum fitted value by this interaction
+	swspp_intx_distandmedsg<-gbm.perspec(sw_species1,9,4) # plot pairwise interactions one at a time (or rather 2 covariates at a time with the response). Numbers correspond to the variables (easy way to identify them is the rank.list call from above). This also provides the maxmum fitted value by this interaction
 
 
-## Predicting to new data. 
+#### Predicting to new data. 
 
 # dataframe to predict into = data.frame version of hab.noland. Keep the grid codes (jcode), remove geometry and check that jcode is a factor. Then duplicate the dataset with half as W and half as D (Season)
-# can use df4preds wth every model. 
+# can use df4preds and sf4preds wth every model. 
+
 hab.noland<-st_as_sf(st_read('hexagon_grid_study_site_with_habitatFromSOSF_forchp3BRUVS.shp'),crs='WGS84')%>%dplyr::select(-grid_ar,-nearest_mg,-dist_cmg)
 
-df4preds<-as.data.frame(hab.noland)%>%dplyr::select(-geometry)%>%dplyr::select(-geometry)%>%slice(rep(1:n(),each=2))%>%mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
-sf4preds<-hab.noland%>%slice(rep(1:n(),each=2))%>%mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
+# How I made the dataframe for predicting: 
+	df4preds<-as.data.frame(hab.noland)%>%dplyr::select(-geometry)%>%dplyr::select(-geometry)%>%slice(rep(1:n(),each=2))%>%mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)%>%dplyr::select(-nearest_mg,-dist_cmg)
+# Import this at start: 
+	df4preds<-read.csv('df_for_prediction_chp3BRUVS_habitat_noland.csv')
+		df4preds$jcode<-as.factor(df4preds$jcode)
+		df4preds$Season<-as.factor(df4preds$Season)
+# How I made the spatial file for matching to df4preds with predictions: 
+	sf4preds<-hab.noland%>%slice(rep(1:n(),each=2))%>%mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
 
-	df4preds$jcode<-as.factor(df4preds$jcode)
-	df4preds$Season<-as.factor(df4preds$Season)
-	sapply(df4preds,class)
-	head(df4preds,6)
-	df4preds<-df4preds%>%dplyr::select(-nearest_mg,-dist_cmg)
-	#write.csv(df4preds,'df_for_prediction_chp3BRUVS_habitat_noland.csv')
+# Import updated each time: 
+	sf4preds<-st_as_sf(st_read('sf_for_predictions_fromBRTs_feb23_withSWspp.shp'),crs='WGS84')
+		sf4preds$jcode<-as.factor(sf4preds$jcode)
+		sf4preds$Season<-as.factor(sf4preds$Season)
 
-# now the data frame is ready to predict with. not spatial, site names (jcode) with predictor variables. 
 
-preds_SWspp<-predict.gbm(sw_species1,df4preds,n.trees=sw_species1$gbm.call$best.trees,type='response')
-	# one item per jcode. Need to cbind.
-p2spp<-as.data.frame(preds_SWspp)
-preds2_SWspp<-bind_cols(df4preds,p2spp)
-head(preds2_SWspp)
+# Dataframes and Simple Features are ready. Use predict.gbm() to create a list f predictions for each row in df4preds. 
 
-# match df4preds with predictions to the spatial geometry file
-	# need to duplicate and add Seasons to spatial files. Then when plotting, I will facet by season. 
+	preds_SWspp<-predict.gbm(sw_species1,df4preds,n.trees=sw_species1$gbm.call$best.trees,type='response')	# one item per jcode. 
+	#make it a df, and bind to df4preds
+	p2spp<-as.data.frame(preds_SWspp)
+	preds2_SWspp<-bind_cols(df4preds,p2spp)
 
-sf4preds<-hab.noland%>%slice(rep(1:n(),each=2))%>%mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode) # use with all models 
+# match df4preds with predictions to the spatial geometry file. Remember Seasons - need to match. can't just cbind bcause sf stored data differently 
+
 # SW Species
-spppreds.dry<-preds2_SWspp%>%filter(Season!='W')
-spppreds.wet<-preds2_SWspp%>%filter(Season!='D')
+	# filter predictions by season (W/D)
+		spppreds.dry<-preds2_SWspp%>%filter(Season!='W')
+		spppreds.wet<-preds2_SWspp%>%filter(Season!='D')
+	# add predictions to sf4preds, filtered by season.
+		sf4predsDRY<-sf4preds%>%filter(Season=='D')%>%mutate(preds_SWsp=spppreds.dry$preds_SWspp,.before='geometry')
+		sf4predsWET<-sf4preds%>%filter(Season=='W')%>%mutate(preds_SWsp=spppreds.wet$preds_SWspp,.before='geometry')
+	# (re)combine separate seasons
+		sf4preds<-bind_rows(sf4predsWET,sf4predsDRY)
+		sf4preds$Season<-as.factor(sf4preds$Season)
+# SW Family
 
-sf4predsDRY<-sf4preds%>%filter(Season=='D')%>%mutate(preds_SWsp=spppreds.dry$preds_SWspp,.before='geometry')
-sf4predsWET<-sf4preds%>%filter(Season=='W')%>%mutate(preds_SWsp=spppreds.wet$preds_SWspp,.before='geometry')
+	# filter predictions by season (W/D)
 
-sf4preds<-bind_rows(sf4predsWET,sf4predsDRY)
+	# add predictions to sf4preds, filtered by season.
+
+	# (re)combine separate seasons
+
+# Gerreidae
+
+	# filter predictions by season (W/D)
+
+	# add predictions to sf4preds, filtered by season.
+
+	# (re)combine separate seasons
 	
+
+
+	# save the updated sf4preds and df4preds
+		st_write(sf4preds,'sf_for_predictions_fromBRTs_feb23_withSWspp.shp')
+		st_write(sf4preds,'sf_for_predictions_fromBRTs_feb23_withSWspp.csv')
+
 # plot them
 season.labels<-as_labeller(c('D'='Dry','W'='Wet'))
 
-swspp.plot<-ggplot()+geom_sf(data=sf4preds,aes(fill=preds_SWsp),col=NA)+scale_fill_distiller(palette='YlOrRd',direction=1,limits=c(0.5,1.7),guide=guide_colourbar(title=' Species \n\ Diversity \n\ Index'))+facet_grid(cols=vars(Season),labeller=season.labels)+theme_minimal()+geom_sf(data=land,fill='gray98')+theme_bw()
-ggsave(swspp.plot,file='shannon_index_species_BRTpreds_feb23.png',device='png',units='in',height=8,width=10,dpi=1000)
+# SW Species
+	swspp.plot<-ggplot()+geom_sf(data=sf4preds,aes(fill=preds_SWsp),col=NA)+scale_fill_distiller(palette='YlOrRd',direction=1,limits=c(0.5,1.7),guide=guide_colourbar(title=' Species \n\ Diversity \n\ Index'))+facet_grid(cols=vars(Season),labeller=season.labels)+theme_minimal()+geom_sf(data=land,fill='gray98')+theme_bw()
+	ggsave(swspp.plot,file='shannon_index_species_BRTpreds_feb23.png',device='png',units='in',height=8,width=10,dpi=1000)
 
 
 
