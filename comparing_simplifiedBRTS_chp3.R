@@ -78,9 +78,6 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm)
 
 
 	# Gerr
-
-
-
 	gerr.simp<-gbm.simplify(gerr2,n.drops=5) # n.drops defines how many the simplify function CAN drop at a MAX.
 	# estimated that I should drop 2 variables. 
 	# re-run gbm.step but instead of listing the vars, I refer the gbm.x argument to the listed object form the simp model. 
