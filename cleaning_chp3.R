@@ -1,4 +1,4 @@
-### For cleaning and processing of data for chapter 3 - resource selection model, based on habittat seleciton of prey and hypoerprior of shark habitat selection. 
+### For cleaning and processing of data for chapter 3 - resource selection model, based on habittat selection of prey
 
 ## created 3 Februry 2023, by Molly Kressler
 ## updated: 7 Feb. 2023 
