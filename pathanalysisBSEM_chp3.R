@@ -115,146 +115,130 @@ head(data3,5)
 ##########################
 
 modelCode1a<-nimbleCode({
-
-##########################
-######### priors #########
-
-#### prior for sharkiness #### 
-for(i in 1:5){
-	a[i] ~ dnorm(0,.001) }
-# prior for intercept - sharks 
-	b ~ dnorm(0,.001)
-# prior for residual variance - sharks 
-	tau.shark ~ dgamma(0.001,0.001) # 
-	sigma.shark <- 1/tau.shark 
-
-# group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
-for(i in 1:N){
-	epsi_shark[i]~ dnorm(0,tau.epsi_shark)}
-tau.epsi_shark ~ dgamma(.001,.001)
-sigma.epsi_shark ~ 1/tau.epsi_shark
-
-
-#### prior for fishiness (Gerreidae) ####
-for(i in 1:5){
-	c[i] ~ dnorm(0,0.001) }
-# prior for intercept - fishiness
-	d ~ dnorm(0,0.001)
-
-# prior for residual variance (precision) - fishiness
-tau.fish ~ dgamma(0.001,0.001) 
-sigma.fish ~ 1/tau.fish 
-
-# group-level effect for site ID on fishiness (epsi_fish)
-# prior for precision of random effect (buffID), then calculated to variance 
-for(i in 1:N){ #n.obsv? or should it related to the grouping
-	epsi_fish[i] ~ dnorm(0,tau.epsi_fish)}
-tau.epsi_fish ~ dgamma(0.001,0.001)
-sigma.epsi_fish ~ 1/tau.epsi_fish
-
-
-#### prior for habitats: distance to shore, distance to refuge, low density seagrass, medium density seagrass ####
- # not even sure I need to specify these since they aren't on the LHS
-# priors - habitat: dist2shore
-	e ~ dnorm(0.001,0.001) # slope
-	ee ~ dnorm(0.001,0.001) # intercept
-
-# priors - habitat: dist_cmg
-	f ~ dnorm(0.001,0.001) # slope
-	ff ~ dnorm(0.001,0.001) # intercept
-
-# priors - habitat: prop_ldsg
-	g ~ dnorm(0.001,0.001) # slope
-	gg ~ dnorm(0.001,0.001) # intercept
-
-# priors - habitat: prop_medsg
-	h ~ dnorm(0.001,0.001) # slope
-	hh ~ dnorm(0.001,0.001) # intercept
-
-
-
-#########################################################
-######### Likelihoods - data and process models #########	
-
-### data model for sharkiness 
-	for(i in 1:N){
-		shark[i] ~ dnorm(shark.mu[i],tau.shark) }
-
-# process model for sharkiness ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg ? + epsi_site?
-	for(i in 1:N){
-		shark.mu[i] ~ b + a[1]*standard.fish[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.lds[i] + a[5]*standard.mds[i] + epsi_shark[buffID[i]]}
-
-### data model for fishiness 
-	for(i in 1:N){
-		fish[i] ~ dnorm(fish.mu[i],tau.fish) }
-# process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
-	for(i in 1:N){
-		fish.mu[i] ~ d + c[1]*standard.shark[i] + c[2]*standard.dist2shore[i] + c[3]*standard.distcmg[i] + c[4]*standard.lds[i] + c[5]*standard.mds[i] + epsi_fish[buffID[i]]}
-
-
-######### derived parameters #########
-# for estmating total pathways 
-# write one for each route through the pathway diagram
-
-	path[1]<- a[2]*a[3]*a[4]*a[5] 
-		# shark ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-	path[2]<- c[2]*c[3]*c[4]*c[5] 
-		# fish ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-	path[3]<- a[1] 
-		# shark ~ fish 
-	path[4]<- c[1] 
-		# fish ~ shark 
-	path[5]<- a[1]*c[2]*c[3]*c[4]*c[5] 
-		# shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
-	path[6]<- c[1]*a[2]*a[3]*a[4]*a[5]
-		# fish ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-
-
+  
+  ##########################
+  ######### priors #########
+  
+  #### prior for sharkiness #### 
+  for(i in 1:5){
+    a[i] ~ dnorm(0,.001) }
+  # prior for intercept - sharks 
+  b ~ dnorm(0,.001)
+  # prior for residual variance - sharks 
+  tau.shark ~ dgamma(0.001,0.001) # 
+  sigma.shark <- (1/tau.shark)
+  
+  # group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
+  for(i in 1:N){
+    epsi_shark[i]~ dnorm(0,tau.epsi_shark)}
+  tau.epsi_shark ~ dgamma(.001,.001)
+  sigma.epsi_shark <- (1/tau.epsi_shark)
+  
+  
+  #### prior for fishiness (Gerreidae) ####
+  for(i in 1:5){
+    c[i] ~ dnorm(0,0.001) }
+  # prior for intercept - fishiness
+  d ~ dnorm(0,0.001)
+  
+  # prior for residual variance (precision) - fishiness
+  tau.fish ~ dgamma(0.001,0.001) 
+  sigma.fish <- (1/tau.fish)
+  
+  # group-level effect for site ID on fishiness (epsi_fish)
+  # prior for precision of random effect (buffID), then calculated to variance 
+  for(i in 1:N){ #n.obsv? or should it related to the grouping
+    epsi_fish[i] ~ dnorm(0,tau.epsi_fish)}
+  tau.epsi_fish ~ dgamma(0.001,0.001)
+  sigma.epsi_fish <- (1/tau.epsi_fish)
+  
+  
+  #### prior for habitats: distance to shore, distance to refuge, low density seagrass, medium density seagrass ####
+  # not even sure I need to specify these since they aren't on the LHS
+  # priors - habitat: dist2shore
+  e ~ dnorm(0.001,0.001) # slope
+  ee ~ dnorm(0.001,0.001) # intercept
+  
+  # priors - habitat: dist_cmg
+  f ~ dnorm(0.001,0.001) # slope
+  ff ~ dnorm(0.001,0.001) # intercept
+  
+  # priors - habitat: prop_ldsg
+  g ~ dnorm(0.001,0.001) # slope
+  gg ~ dnorm(0.001,0.001) # intercept
+  
+  # priors - habitat: prop_medsg
+  h ~ dnorm(0.001,0.001) # slope
+  hh ~ dnorm(0.001,0.001) # intercept
+  
+  
+  
+  #########################################################
+  ######### Likelihoods - data and process models #########	
+  
+  ### data model for sharkiness 
+  for(i in 1:N){
+    shark[i] ~ dnorm(shark.mu[i],tau.shark) }
+  
+  # process model for sharkiness ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg ? + epsi_site?
+  for(i in 1:N){
+    shark.mu[i] <- b + a[1]*standard.fish[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.lds[i] + a[5]*standard.mds[i] + epsi_shark[buffID[i]]}
+  
+  ### data model for fishiness 
+  for(i in 1:N){
+    fish[i] ~ dnorm(fish.mu[i],tau.fish) }
+  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+  for(i in 1:N){
+    fish.mu[i] <- d + c[1]*standard.shark[i] + c[2]*standard.dist2shore[i] + c[3]*standard.distcmg[i] + c[4]*standard.lds[i] + c[5]*standard.mds[i] + epsi_fish[buffID[i]]}
+  
+  
+  ######### derived parameters #########
+  # for estmating total pathways 
+  # write one for each route through the pathway diagram
+  
+  path[1]<- a[2]*a[3]*a[4]*a[5] 
+  # shark ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
+  path[2]<- c[2]*c[3]*c[4]*c[5] 
+  # fish ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
+  path[3]<- a[1] 
+  # shark ~ fish 
+  path[4]<- c[1] 
+  # fish ~ shark 
+  path[5]<- a[1]*c[2]*c[3]*c[4]*c[5] 
+  # shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
+  path[6]<- c[1]*a[2]*a[3]*a[4]*a[5]
+  # fish ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg 
+  
+  
 }) # end of model code 
-
-		# alternate derived paths 
-			path[1]<- e*f*g*h*a[2]*a[3]*a[4]*a[5] 
-				# shark ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-			path[2]<- e*f*g*h*c[2]*c[3]*c[4]*c[5] 
-				# fish ~ dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-			path[3]<- a[1] 
-				# shark ~ fish 
-			path[4]<- c[1] 
-				# fish ~ shark 
-			path[5]<- e*f*g*h*a[1]*c[2]*c[3]*c[4]*c[5] 
-				# shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
-			path[6]<- e*f*g*h*c[1]*a[2]*a[3]*a[4]*a[5]
-				# fish ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg 
-
 
 ##########################
 ## Compile the model code
 ##########################
 
 
-	myCovs<-c('standard.fish','standard.shark','standard.dist2shore','standard.distcmg','standard.lds','standard.mds','buffID')
-	myConstants<-list(N=560,buffID=35) # if above, for group-level effects, the 'N' should be related to the numbe of groups, then the 'N' should be changed to numGroups, or numGroups changed to buffID. 
-	myData<-list(
-		# tell nimble the covariates 
-		standard.fish = data3$standard.fish,
-		standard.shark = data3$standard.shark,
-		standard.dist2shore = data3$standard.dist2shore,
-		standard.distcmg = data3$standard.distcmg,
-		standard.lds = data3$standard.lds,
-		standard.mds = data3$standard.mds,
-		# tell nimble the constants
-		N=560,
-		buffID=as.numeric(factor(data3$buffID))
-		)
-	initial.values <- function() list(theta = runif(1,0,1))
-	init.values<-list(alpha=1,beta=1,theta= rep(0.1,myConstants$N))
+myCovs<-c('standard.fish','standard.shark','standard.dist2shore','standard.distcmg','standard.lds','standard.mds','buffID')
+myConstants<-list(N=560,buffID=as.numeric(factor(data3$buffID))) # ,buffID=35# if above, for group-level effects, the 'N' should be related to the numbe of groups, then the 'N' should be changed to numGroups, or numGroups changed to buffID. 
+myData<-list(
+  # tell nimble the covariates 
+  standard.fish = data3$standard.fish,
+  standard.shark = data3$standard.shark,
+  standard.dist2shore = data3$standard.dist2shore,
+  standard.distcmg = data3$standard.distcmg,
+  standard.lds = data3$standard.lds,
+  standard.mds = data3$standard.mds
+  # tell nimble the constants
+  #N=560,
+  #buffID=as.numeric(factor(data3$buffID))
+)
+initial.values <- function() list(theta = runif(1,0,1))
+init.values<-list(alpha=1,beta=1,theta= rep(0.1,myConstants$N))
 
-model1a<-nimbleModel(code=modelCode1a, name="model1a",data=myData)
-	
-	model1a$getNodeNames
+model1a<-nimbleModel(code=modelCode1a, name="model1a",data=myData,constants = myConstants)
+
+model1a$getNodeNames
 
 model1aMCMC.output<-nimbleMCMC(code=modelCode1a,data=myData,inits=initial.values,niter=5000,nburnin=1000,nchains=1)
-
 ##########################
 ## Compile the MCMC
 ##########################
