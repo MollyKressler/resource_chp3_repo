@@ -1,6 +1,8 @@
 ## Structuring data for path analysis in the package NIMBLE 
 ## Data from BRUVS collected by Sarah Driscoll and Henriette Grimmel. Habitat data provided by the BBFSF and Matthew Smukall. Shark detection data provided by Evan Byrnes, Clemency White, the BBFSF, and Matthew Smukall, with support from Vital Heim.
 
+## 24 May 2023: structuring second dataframe for path analysis. DF based on the hexagon predictions for shark use and fish occurence across the study site. Vars: pr(use) for sharks, BRT estimates of Gerreidae count (back transformed), BRT estmates of species diversity, habitat (raw). Calculated Var: cross metric for Gerries and Diversity (gerreidae * diversity) 'fishy'. 
+
 ## created by Molly Kressler, 12 April 2023
 
 
@@ -11,19 +13,42 @@ setwd('/Users/mollykressler/Documents/data_phd')
 
 ## Load data
 
-fish<-st_as_sf(st_read('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_SWSpecies_feb23.shp'),crs='WGS84')
-	# shannon index for species, modelled by a BRT, simplified (low/medium/high densities of seagrass, sargassum, urban and rocky, deepwater, dist2shore): sppsmPD
-	# Gerreidae counts, modelled by a BRT, simplified (low density seagrass and dist2shore ONLY): btGerrSimPD
+## data frame 1: spatially organised by receivers. point detections of sharks, BRT estimates of Gerriedae count and Species diversity, and habitat. This is for the process model of sharkiness in path analysis. 
 
-sharksANDhabitat<-st_as_sf(st_read('cleaned_detections/detections20192020_NOghosts_withUPDATEDhabitat_sept22.shp'),crs='WGS84')# starting with the data from chapter 2 of MK thesis, Habitat or safety?. Sharks have PCLs from 60-100cm. The data has been filtered for ghosts detections at a threshold of 6hrs (see chp2 or the manuscript github for details). Habitat has been assigned by the effectve detection range buffer area which is centred around the receiver point location. Habtat data has been calculated from shapefiles provided by Matthew Smukall and the BBFSF. Buffer shape is missign from the shapefile, so you need to load that separately, in order to do the spatial maths on fish. 
+	fish<-st_as_sf(st_read('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_SWSpecies_feb23.shp'),crs='WGS84')
+		# shannon index for species, modelled by a BRT, simplified (low/medium/high densities of seagrass, sargassum, urban and rocky, deepwater, dist2shore): sppsmPD
+		# Gerreidae counts, modelled by a BRT, simplified (low density seagrass and dist2shore ONLY): btGerrSimPD
 
-buffs<-st_as_sf(st_read('buffers_2019_2020.shp'),crs='WGS84')%>%mutate(buff_ar=st_area(geometry))
+	sharksANDhabitat<-st_as_sf(st_read('cleaned_detections/detections20192020_NOghosts_withUPDATEDhabitat_sept22.shp'),crs='WGS84')# starting with the data from chapter 2 of MK thesis, Habitat or safety?. Sharks have PCLs from 60-100cm. The data has been filtered for ghosts detections at a threshold of 6hrs (see chp2 or the manuscript github for details). Habitat has been assigned by the effectve detection range buffer area which is centred around the receiver point location. Habtat data has been calculated from shapefiles provided by Matthew Smukall and the BBFSF. Buffer shape is missign from the shapefile, so you need to load that separately, in order to do the spatial maths on fish. 
 
-	# check:
-	ggplot()+geom_sf(data=sharksANDhabitat)+geom_sf(data=buffs[33,],alpha=0.5,fill='violetred2',col=NA)+theme_bw()
-	# SHOULD SEE: 35 black dots (receivers) and pale pink crcles around each black dot (the effective detection range of 211m)
+	buffs<-st_as_sf(st_read('buffers_2019_2020.shp'),crs='WGS84')%>%mutate(buff_ar=st_area(geometry))
 
-### Modelling dataframe 
+		# check:
+		ggplot()+geom_sf(data=sharksANDhabitat)+geom_sf(data=buffs[33,],alpha=0.5,fill='violetred2',col=NA)+theme_bw()
+		# SHOULD SEE: 35 black dots (receivers) and pale pink crcles around each black dot (the effective detection range of 211m)
+
+## data frame 2: spatially organised by hexagons. Predictions of shark use (Pr(use)), Gerreidae back-transformed counts from BRT, Species diversity index from BRT, cross metric of 'fishy', and habitat. This is data for the process model of fishiness in path analysis. 
+	# land & centroid of mangroves
+
+		land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')
+		cmg<-st_as_sf(st_read('habitat_model/cleaned_code/habitatorsafetylemonsharks_ms/data/centroid_mangroves_north.shp'),crs='WGS84')
+
+	# hexagon df of Pr(use) with habitat BEFORE updating. This dataframe has information for low AND high tide, so you need to filter out for low only
+
+		pruse<-st_as_sf(st_read('habitat_model/no ghosts of 6hr threshold/habitatmodel_preds_method5_withANDwithoutREFUGE_ghostsremoved_glmers_dec22_updatedhabitat.shp'),crs='WGS84')%>%
+		filter(tidephs=='L')%>%
+			dplyr::select(jcode,prp_brs,prp_lds,prp_mds,AIC_m5_,geometry)%>%
+			rename(prop_brs=prp_brs,prop_ldsg=prp_lds,prop_medsg=prp_mds,method5_PrUSE=AIC_m5_)%>%
+			mutate(jcode=as_factor(jcode),.before=geometry)
+
+	# hexagon df of Gerreidae (BRT) & SW Species (BRT) - if these hexs dont align with 'pruse', re-predict the simplified BRTs into the Pr(use) hexagon df. 
+		
+		fishes<-st_as_sf(st_read('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_SWSpecies_feb23.shp'),crs='WGS84')%>%
+			dplyr::select(jcode,prop_brs,prop_ldsg,prop_medsg,sppsmPD,btGerSimPD,geometry)%>%
+			mutate(fishy=(sppsmPD*btGerSimPD),jcode=as_factor(jcode),.before=geometry)
+		fishes%>%filter(jcode=='12070')
+
+### Modelling dataframe 1
 # three components: sharkiness, fishiness, habitat
 	# point detections of sharks (receivers)
 	# fishiness variable estmates modelled by boosted regression tree analysis and assigned by detection buffer area (average of hexagons in buffer)
@@ -31,48 +56,9 @@ buffs<-st_as_sf(st_read('buffers_2019_2020.shp'),crs='WGS84')%>%mutate(buff_ar=s
 
 	## Deprecated approach
 		# Step 1: cut fishiness for the buffer area 
-		ggplot()+geom_sf(data=fishINbuffs)
-
-			fishINbuffs<-st_intersection(buffs,fish) # cuts the hexagons but then there are multiple rows per buff. this old problem. Also: for Gerr, add the hexagon values because the predictions are counts, for SW-Spp average because those are not additive
-			# struggling to do it as an sf - convert to a df then match to the sf - shark with habitat via buffer IDs
-
-			a<-as_data_frame(fishINbuffs)%>%select(-geometry)
-			
-			b2<-a%>%
-				group_by(buffID)%>%
-				mutate(gerr_sum=mean(btGerSimPD),sppSW_avg=mean(sppsmPD))%>%
-				filter(row_number()==1)%>%
-				select(buffID,gerr_sum,sppSW_avg)
-			# buffers 12 & 13 are completely outside of the known habitat (and therefore outside of the predictions for the BRT)
-			# buffers &, partially outside/inside. These need reconstructed Gerreidae counts (sppSW is fine because it's an average)
-				partials<-c('r10','r17')
-				partial<-a%>%
-					filter(buffID%in%partials)%>%
-					group_by(buffID)%>%
-					mutate(gerr_sum=(mean(btGerSimPD)),sppSW_avg=mean(sppsmPD))%>%
-					filter(row_number()==1)%>%
-					select(buffID,gerr_sum,sppSW_avg)
-				partial$gerr_sum<-as.numeric(partial$gerr_sum)
-
-			# join partials to mains, and add missing with 'NA's
-				missing<-tibble(buffID=c('r12','r13'),gerr_sum=c(NA,NA),sppSW_avg=c(NA,NA))
-				summary_fish_in_buffs<-bind_rows(b2%>%filter(!buffID%in%partials),partial,missing)
-
-			# make summary_fish_in_buffs an sf again
-				sf_fishinessBYbuffs<-left_join(buffs,summary_fish_in_buffs,by='buffID')
-
-
 		# Step 2: Match fishiness to the sharksANDhabitat based on the buffer ID 
-			sf_fishinessBYbuffs
-			sharksANDhabitat
 
-			data<-st_join(sharksANDhabitat,sf_fishinessBYbuffs)
-			stopifnot(nrow(data)==nrow(sharksANDhabitat)) # check 
-			summary(data$gerr_sum)
-			summary(fish$btGerSimPD) # Gerries only predicted up to 197 per hexagon. maybe I should take the average. Take the average. Adjust above. 
-			# average makes the buffer estimates more appropriate.
-
-	#### DIFFERENT APPROACH, 2/5/2023 : predict the BRTs straight into a buffer+habitat df. 
+  #### DIFFERENT APPROACH, 2/5/2023 : predict the BRTs straight into a buffer+habitat df. 
 	# this would be mathematically better, than taking lots of averages. 
 
 		simple_gerr<-readRDS('resource_chp3/model_RDS/simplified_gerreidae_BRT_feb23_lowdensitySG_dist2shore.RDS')
@@ -158,20 +144,161 @@ buffs<-st_as_sf(st_read('buffers_2019_2020.shp'),crs='WGS84')%>%mutate(buff_ar=s
 
 
 
-fishiness_in_buffers<-st_as_sf(st_read('sf_with_predictions_INTO_BUFFERS_fromBRTs_feb23.shp'),crs='WGS84')%>%dplyr::select(-smpl_PD)%>%rename('prop_brs'='prp_brs','prop_ldsg'='prp_lds','prop_medsg'='prp_mds','prop_hdsg'='prp_hds','prop_sarg'='prp_srg','prop_marsh'='prp_mrs','prop_urb_r'='prp_rb_','prop_deep'='prop_dp','prop_spong'='prp_spn','prop_unkwn'='prp_nkw','dist2shore'='dst2shr')
-f<-fishiness_in_buffers%>%filter(buffID=='r33')
-# yay!
+	fishiness_in_buffers<-st_as_sf(st_read('sf_with_predictions_INTO_BUFFERS_fromBRTs_feb23.shp'),crs='WGS84')%>%dplyr::select(-smpl_PD)%>%rename('prop_brs'='prp_brs','prop_ldsg'='prp_lds','prop_medsg'='prp_mds','prop_hdsg'='prp_hds','prop_sarg'='prp_srg','prop_marsh'='prp_mrs','prop_urb_r'='prp_rb_','prop_deep'='prop_dp','prop_spong'='prp_spn','prop_unkwn'='prp_nkw','dist2shore'='dst2shr')
+	f<-fishiness_in_buffers%>%filter(buffID=='r33')
+	# yay!
 
-# spatially join sharks & habitat to fishiness in buffers 
-not.needed.vars<-c("difftim","sgmnt_s","sgmnt_n","SgmntID","ghost" , "FID","station","nearest_mg",'prop_brs','prop_ldsg','prop_medsg','prop_hdsg','prop_sarg','prop_marsh','prop_urb_r','prop_deep','prop_spong','prop_unkwn','prop_inlvg','prop_man','dist_cmg')
-sharksANDhabitat2<-sharksANDhabitat%>%
-	dplyr::select(-all_of(not.needed.vars))
+	# spatially join sharks & habitat to fishiness in buffers 
+	not.needed.vars<-c("difftim","sgmnt_s","sgmnt_n","SgmntID","ghost" , "FID","station","nearest_mg",'prop_brs','prop_ldsg','prop_medsg','prop_hdsg','prop_sarg','prop_marsh','prop_urb_r','prop_deep','prop_spong','prop_unkwn','prop_inlvg','prop_man','dist_cmg')
+	sharksANDhabitat2<-sharksANDhabitat%>%
+		dplyr::select(-all_of(not.needed.vars))
 
-data5<-st_join(sharksANDhabitat2,fishiness_in_buffers)
-nrow(sharksANDhabitat2)
-summary(data5)
+	data5<-st_join(sharksANDhabitat2,fishiness_in_buffers)
+	nrow(sharksANDhabitat2)
+	summary(data5)
 
 	st_write(data5,'resource_chp3/data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.shp',driver='ESRI Shapefile',append=FALSE)
 	st_write(data5,'resource_chp3/data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+
+
+
+
+
+	#### STANDARDISE & MEAN-CENTRED
+		data<-read.csv('data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.csv')
+
+		habitats<-c('prop_brs','prop_ldsg','prop_medsg','prop_hdsg','prop_sarg','prop_marsh','prop_urb_r','prop_deep','prop_unkwn')
+		fishmetrics<-c('bt_g_PD','sppsmPD')
+
+		fishANDhab<-data%>%
+			dplyr::select(buffID,dist2shore,dst_cmg,unlist(habitats),unlist(fishmetrics))%>%
+			group_by(buffID)%>%
+			filter(row_number()==1)
+
+		data2<- data %>%
+			dplyr::select(PIT,buffID)%>%
+			group_by(PIT,buffID)%>%
+			tally()
+		data3<-expand.grid(PIT=unique(data2$PIT),buffID=unique(data2$buffID))%>%
+			left_join(.,data2)%>%
+			mutate(n=replace_na(n,0))%>%
+			left_join(.,fishANDhab,by='buffID')%>%
+			mutate(gerries=bt_g_PD)%>%
+			mutate(fishy=sppsmPD*gerries)%>% 
+			mutate(standard.shark=((n-mean(n))/sd(n)))%>% 
+			mutate(standard.fish=((fishy-mean(fishy))/sd(fishy)))%>%
+			mutate(standard.lds=((prop_ldsg-mean(prop_ldsg))/sd(prop_ldsg)))%>% 
+			mutate(standard.mds=((prop_medsg-mean(prop_medsg))/sd(prop_medsg)))%>% 
+			mutate(standard.unkn=((prop_unkwn-mean(prop_unkwn))/sd(prop_unkwn)))%>% 
+			mutate(standard.dist2shore=((dist2shore-mean(dist2shore))/sd(dist2shore)))%>% 
+			mutate(standard.distcmg=((dst_cmg-mean(dst_cmg))/sd(dst_cmg)))%>%
+			mutate(buffIDnum=str_remove(.$buffID,"r"))%>%
+			dplyr::select(PIT,buffIDnum,standard.shark,standard.fish,standard.dist2shore,standard.distcmg,standard.lds,standard.mds)
+
+		data3$buffIDnum<-as.numeric(data3$buffIDnum)
+		summary(data3)
+
+
+	#### Principal component analysis for seagrass (hex)
+		# examine correlation 
+		cor(data3$standard.lds,data3$standard.mds) # - 0.414, weak/moderate correlation
+
+		# calculate the principal components
+		pca1<-prcomp(data3[,7:8])
+
+		summary(pca1)		
+		plot(pca1,type='lines') # pc2 eigen value is below the threshodl for meaningness. 
+		pca1$sdev^2 # eigenvalues for each component
+		pca1$rotation # look at loading coefficiations, eignenvectors. Loadings illustrate the association between each PC and the original vars. high loading = more contribution
+		biplot(pca1,cex=0.1) # loadings against observations. red arrows indicate the loadings. 
+
+		# seems like PCA1 is a better 
+
+		data3$standard.sgPCA1<-predict(pca1)[,1]
+		summary(data3)	
+
+
+		write.csv(data3,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.csv')
+
+
+
+
+### Modelling dataframe 2
+
+	ggplot()+
+		geom_sf(data=fishes,fill='cadetblue3',alpha=0.3)+
+		geom_sf(data=pruse,fill='violetred4',alpha=0.3)+
+		theme_bw()
+		# they appear to spatially align, check with a stopifnot after spatial join
+	summary(pruse)
+	summary(fishes)
+
+
+	# join pruse and fishes
+
+		combo.sf2 <- st_join(pruse,fishes%>%
+			dplyr::select(fishy,btGerSimPD,sppsmPD),join=st_covered_by,left=TRUE)%>%
+			mutate(dist2shore=(st_distance(st_centroid(geometry),st_union(land))), 
+				dist_cmg=(st_distance(st_centroid(geometry),cmg)),
+				.before=geometry)%>%
+			dplyr::rename('mtd5_PrUSE'='method5_PrUSE')
+
+		summary(combo.sf2) # no NAs.
+		stopifnot(nrow(fishes)==nrow(combo.sf2) & nrow(pruse)==nrow(combo.sf2) & mean(fishes$prop_brs)==mean(combo.sf2$prop_brs) & mean(fishes$sppsmPD)==mean(combo.sf2$sppsmPD)) # check 
+
+	## save as shp and csv
+		st_write(combo.sf2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may23.shp',driver='ESRI Shapefile',append=FALSE)
+		st_write(combo.sf2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+
+	#### STANDARDISE & MEAN-CENTRED
+		data <- as_tibble(combo.sf2)
+		data2 <- data%>%
+			mutate(standard.hexshark=((mtd5_PrUSE-mean(mtd5_PrUSE))/sd(mtd5_PrUSE)))%>% 
+			mutate(standard.hexfish=((fishy-mean(fishy))/sd(fishy)))%>%
+			mutate(standard.hexlds=((prop_ldsg-mean(prop_ldsg))/sd(prop_ldsg)))%>% 
+			mutate(standard.hexmds=((prop_medsg-mean(prop_medsg))/sd(prop_medsg)))%>% 
+			mutate(standard.hexdist2shore=((as.numeric(dist2shore)-mean(as.numeric(dist2shore)))/sd(as.numeric(dist2shore))))%>% 
+			mutate(standard.hexdistcmg=((as.numeric(dist_cmg)-mean(as.numeric(dist_cmg)))/sd(as.numeric(dist_cmg))))%>%
+			dplyr::select(jcode,standard.hexshark,standard.hexfish,standard.hexdist2shore,standard.hexdistcmg,standard.hexlds,standard.hexmds)
+		stopifnot(nrow(combo.sf2)==nrow(data2))
+
+		summary(data2)
+		hist(data2$standard.hexdistcmg)
+
+	#### Principal component analysis for seagrass (hex)
+		# examine correlation 
+		data2<-hexdata
+		cor(data2$standard.hexlds,data2$standard.hexmds) # - 0.214, weak correlation
+
+		# calculate the principal components
+		pca1<-prcomp(data2[,6:7])
+
+		summary(pca1)		
+		plot(pca1,type='lines') # pc2 eigen value is below the threshodl for meaningness. 
+		pca1$sdev^2 # eigenvalues for each component
+		pca1$rotation # look at loading coefficiations, eignenvectors. Loadings illustrate the association between each PC and the original vars. high loading = more contribution
+		biplot(pca1,cex=0.1) # loadings against observations. red arrows indicate the loadings. 
+
+		# seems like PCA2 is a better 
+
+		data2$standard.hexsgPCA1<-predict(pca1)[,1]
+		summary(data2)	
+
+
+	## save
+
+		write.csv(data2,'resource_chp3/standardisedmeancentred_data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may23.csv')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
