@@ -19,7 +19,7 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 ### Define Sharkiness
 ## counts of detections per individual per Site (buffer/receiver)
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.csv')%>%dplyr::select(-X)#%>%rename('prop_brs'='prp_','prop_ldsg'='prp_lds','prop_medsg'='prp_mds','prop_hdsg'='prp_hds','prop_sarg'='prp_srg','prop_marsh'='prp_mrs','prop_urb_r'='prp_rb_','prop_deep'='prop_dp','prop_spong'='prp_spn','prop_unkwn'='prp_nkw')
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may23.csv')%>%dplyr::select(-X)
 pointdata$PIT<-as_factor(pointdata$PIT)
 pointdata$buffID<-as.numeric(pointdata$buffID)
 pointdata$buffIDnum<-as.numeric(pointdata$buffIDnum)
@@ -39,6 +39,26 @@ hexdata<-read.csv('standardisedmeancentred_data_for_bayes_structural_EQ_modellin
 sapply(hexdata,class)
 
 
+
+
+
+####################################################
+######  Df for spatial autocorrelaitonof hexagon grid cells 
+
+pacman::p_load(sfdep,sp,spdep)
+
+data <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may23.shp'))%>%dplyr::select(jcode,geometry)
+head(data)
+
+# A CAR (conditional autoregressive) model requires 'queen neighborhood' information; sfdep package is supposed to help with this. 
+
+	queen <- st_contiguity(data)
+# Mixign methods from sfdep and spdep because nimble help pages are limited. 
+
+queen <- st_contiguity(data)
+nbInfo <- nb2WB(queen)
+
+
 ######################### END ###################################
 #################################################################
 
@@ -50,6 +70,8 @@ sapply(hexdata,class)
 #### overview of models 
 	## model1a - uses only DF1, and doesn't work as ntended becuase site explains all the variance in fish (bc of how the data is structured).
 	## model2a - uses DF1 for modelling sharks and coefficients for shark predictors; and DF2 for fishes and coefficients for fish predictors. 
+	## model2b - model2a with a parameter in sharks models that calculate the occurence detection probability
+	## model2c - model2b (unresolved) but now with attempts to account for spatial autocorrelation. For tme being, Zi is commented out. 
 
 	## for habitat variables, we used the types identified in previous modelling as influencing habitat selection. For sharks, this is distance to the central mangrove point and medium density seagrass; for Gerreidae, this is distance to shore and low density seagrass; and for the diversity index for species, we included only the habitats with relative influence in the BRTs > 15%, which are distance to the shore and low density seagrass.
 
@@ -249,212 +271,665 @@ sapply(hexdata,class)
 		#Cm1a$plotGraph()
 
 
+##########################################
+########### MODEL 2A, INCLUDING HEXAGONs 
+
+	##########################
+
+	modelCode2a<-nimbleCode({
+	  
+	  ##########################
+	  ######### priors #########
+	  
+	  #### prior for sharkiness #### 
+	  for(i in 1:5){
+	    a[i] ~ dnorm(0,.001) 
+		}
+	  # prior for intercept - sharks 
+	  b ~ dnorm(0,.001)
+	  # prior for residual variance - sharks 
+	  tau.shark ~ dgamma(0.01,0.01) # 
+	  sigma.shark <- sqrt(1/tau.shark)
+	  
+	  # group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
+	  for(i in 1:B){
+	    epsi_shark[i]~ dnorm(0,tau.epsi_shark)
+		}
+	  tau.epsi_shark ~ dunif(0,100)
+	  sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
+	  
+	  
+	  #### prior for fishiness (cross metric, hexagons) ####
+	  for(i in 1:5){
+		    c[i] ~ dnorm(0,0.001) 
+			}
+		  # prior for intercept - fishiness
+		  d ~ dnorm(0,0.001)
+		  
+		  # prior for residual variance (precision) - fishiness
+		  tau.fish ~ dgamma(0.01,0.01) 
+		  sigma.fish <- sqrt(1/tau.fish) # gives sd 
+	  
+
+	  #### prior for seagrass PCA @ hexagon level ####
+	  for(i in 1:2){
+		  	e[i] ~ dnorm(0,.001)
+		  }
+
+		  # prior for intercept - hexagon sg PCA
+		  f ~ dnorm(0,.001)
+
+		  # prior for residual variance (precision) - hexagon sg PCA 
+		  tau.hexsgPCA ~ dgamma(.01,.01)
+		  sigma.hexsgPCA <- sqrt(1/tau.hexsgPCA)
+
+		  # prior for autocorrelation structure - hexagon sg PCA
+
+	  
+ 	#### prior for seagrass PCA @ pointdata/receiver level ####
+		for(i in 1:2){
+			g[i] ~ dnorm(0,.001)
+		}
+		  # prior for intercept - point sg PCA
+			h ~ dnorm(0,.001)
+		  # prior for residual variance (precision) - point sg PCA 
+			tau.sgPCA ~ dgamma(0.01,0.01)
+		  sigma.sgPCA <- sqrt(1/tau.sgPCA)
+	  
+
+
+	  #########################################################
+	  ######### Likelihoods - data and process models #########	
+	  
+	  ### data model for sgPCA for pointdata/receiver level (sharks)
+	  for(i in 1:B){
+	    standard.sgPCA1[i] ~ dnorm(sgPCA.mu[i],tau.sgPCA)   
+	  # process model for point-sgPCA ~ dist2shore + dist_cmg + epsi_site
+	    sgPCA.mu[i] <- h + g[1]*standard.dist2shore[i] + g[2]*standard.distcmg[i] 
+	  }
+
+
+	  ### data model for sgPCA for hexdata/hexagon level (fishes) 
+	  for(i in 1:hex.N){
+	    standard.hexsgPCA1[i] ~ dnorm(hexsgPCA.mu[i],tau.hexsgPCA) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexsgPCA.mu[i] <- f + e[1]*standard.hexdist2shore[i] + e[2]*standard.hexdistcmg[i] 
+		}
+
+
+	  ### data model for sharkiness 
+	  for(i in 1:point.N){
+	    standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)   
+	  # process model for sharkiness ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg ? + epsi_site?
+	    shark.mu[i] <- b + epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.sgPCA1[i] 
+	  }
+	  ### data model for fishiness 
+	  for(i in 1:hex.N){
+	    standard.hexfish[i] ~ dnorm(hexfish.mu[i],tau.fish) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexfish.mu[i] <- d + c[1]*standard.hexshark[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexdistcmg[i] + c[4]*standard.hexsgPCA1[i]
+		}
+
+	  ######### derived parameters #########
+	  # for estmating total pathways 
+	  # write one for each route through the pathway diagram
+	  
+	  #path[1]<- g[1]*g[2] # point SG PCA ~ dist2shore + dist_cmg 
+	  #path[2]<- e[1]*e[2] # hex SG PCA ~ dist2shore + dist_cmg
+	  
+	  ## 26 May 2023: technically, paths 1 & 2 here should not be included. these paths should be paths that end at shark and fish. so it should actually be just the hab pathways that arrive at shark/fish, and the hab + shark/fish pathways that end at fish/shark respectively. Keeping for now, and not stopping the current MCMC run (model2a 200000iter, 25000burnin, 3 chains) because not sure they effect the runs of the other pathways but in next model run, remove. 
+
+	  path[1]<- g[1]*g[2]*a[4] # shark ~ dist2shore + dist_cmg + sgPCA
+	  path[2]<- e[1]*e[2]*c[4] # fish ~ dist2shore + dist_cmg + sgPCA
+
+	  path[3]<- c[1] # fish ~ shark 
+	  path[4]<- a[1] # shark ~ fish
+
+	  path[5]<- g[1]*g[2]*a[4]*a[1] # shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
+	  path[6]<- e[1]*e[2]*c[4]*c[1] # fish ~ shark + dist2shore + dist_cmg + hexsgPCA: e2+3 are the effect of habtat on shark VIA their effect on seagrass, and c4 is the effect of seagrass, and c1 is the effect of sharks, on fish.    
+
+	  
+	  
+	}) # end of model code 
+
+
+	##########################
+	## Compile the model code
+	##########################
+
+		myConstants2<-list(point.N=560,hex.N=nrow(hexdata),B=max(pointdata$buffIDnum),buffID=pointdata$buffIDnum) 
+		myData2<-list(
+		  # tell nimble the covariates 
+		  	# point data
+		  standard.shark = pointdata$standard.shark,
+		  standard.dist2shore = pointdata$standard.dist2shore,
+		  standard.distcmg = pointdata$standard.distcmg,
+		  #standard.lds = pointdata$standard.lds,
+		  #standard.mds = pointdata$standard.mds,
+		  standard.fish.pred = pointdata$standard.fish,
+		  standard.sgPCA1 = pointdata$standard.sgPCA1,
+		  	# hex data 
+		  standard.hexfish = hexdata$standard.hexfish,
+		  standard.hexshark = hexdata$standard.hexshark,
+		  standard.hexdist2shore = hexdata$standard.hexdist2shore,
+		  standard.hexdistcmg = hexdata$standard.hexdistcmg,
+		  #standard.hexlds = hexdata$standard.hexlds,
+		  #standard.hexmds = hexdata$standard.hexmds,
+		  standard.hexsgPCA1 = hexdata$standard.hexsgPCA1
+		)
+
+		init.values2<-list(a=rnorm(5,0,1),
+			b=rnorm(1),
+			c=rnorm(5,0,1),
+			d=rnorm(1),
+			e=rnorm(2,0,1),
+			f=rnorm(1),
+			g=rnorm(2,0,1),
+			h=rnorm(1),
+			tau.shark=rgamma(1,0.01,0.01),
+			tau.fish=rgamma(1,0.01,0.01),
+			tau.epsi_shark=runif(1,0,100))
+			
+		model2a<-nimbleModel(code=modelCode2a, name="model2a",data=myData2,constants = myConstants2,inits=init.values2) #define the model
+
+		Cm2a<-compileNimble(model2a) # compile the model
+
+	  # saveRDS(Cm2a,'nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
+		#	Cm2a<-readRDS('nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
+
+	##########################
+	## Compile & Run the MCMC
+	##########################
+
+		C2a.MCMC.output<-nimbleMCMC(code=modelCode2a,data=myData2,constants= myConstants2, inits=init.values2,niter=5000,nburnin=200,nchains=3,monitors=c('a','b','c','d','e','f','g','h','path','tau.epsi_shark','tau.fish','tau.shark')) 
+
+	##########################
+	## Posterior Inference 
+	##########################
+
+		# numeric summaries
+
+		mcmc_summary_Cmodel2a<-MCMCsummary(C2a.MCMC.output,round=3,pg0=TRUE)%>%
+				tibble::rownames_to_column()%>%
+				rename_with(str_to_title)%>%
+				flextable()%>%
+				theme_alafoli()%>%
+				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+				align(align = 'center', part = 'all')%>%
+				font(fontname = 'Times', part = 'all')%>%
+				color(color='black',part='all')%>%
+				fontsize(size = 10, part = 'all')%>%
+				autofit()
+
+		# caterpillar plots 
+
+
+		MCMCplot(C2a.MCMC.output,ci=c(50,95),params=c('path')) # point = median, thick line = 50% CI, thin line = 95% CI 
+
+
+
+		# trace and density plots
+
+		coeffNintercept<-colnames(samples_fourchains_C1aMCMC,do.NULL=TRUE,prefix='row')
+
+
+		MCMCtrace(C2a.MCMC.outputB,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
 
 
 
 ##########################################
-########### MODEL 2A, HEXAGON LEVEL MODEL
+########### MODEL 2B, INCLUDING HEXAGONS - accounting for occurence detection probability
 
-##########################
+	##########################
 
-modelCode2a<-nimbleCode({
-  
-  ##########################
-  ######### priors #########
-  
-  #### prior for sharkiness #### 
-  for(i in 1:5){
-    a[i] ~ dnorm(0,.001) 
-	}
-  # prior for intercept - sharks 
-  b ~ dnorm(0,.001)
-  # prior for residual variance - sharks 
-  tau.shark ~ dgamma(0.01,0.01) # 
-  sigma.shark <- sqrt(1/tau.shark)
-  
-  # group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
-  for(i in 1:B){
-    epsi_shark[i]~ dnorm(0,tau.epsi_shark)
-	}
-  tau.epsi_shark ~ dunif(0,100)
-  sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
-  
-  
-  #### prior for fishiness (cross metric, hexagons) ####
-  for(i in 1:5){
-	    c[i] ~ dnorm(0,0.001) 
-		}
-	  # prior for intercept - fishiness
-	  d ~ dnorm(0,0.001)
+	modelCode2b<-nimbleCode({
 	  
-	  # prior for residual variance (precision) - fishiness
-	  tau.fish ~ dgamma(0.01,0.01) 
-	  sigma.fish <- sqrt(1/tau.fish) # gives sd 
-  
+	  ##########################
+	  ######### priors #########
+	  
+	  #### prior for sharkiness #### 
+	  for(i in 1:5){
+	    a[i] ~ dnorm(0,.001) 
+		}
+	  # prior for intercept - sharks 
+	  b ~ dnorm(0,.001)
+	  # prior for residual variance - sharks 
+	  tau.shark ~ dgamma(0.01,0.01) # 
+	  sigma.shark <- sqrt(1/tau.shark)
+	  
+	  # group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
+	  for(i in 1:B){
+	    epsi_shark[i]~ dnorm(0,tau.epsi_shark)
+		}
+	  tau.epsi_shark ~ dunif(0,100)
+	  sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
+	  
+	  
+	  #### prior for fishiness (cross metric, hexagons) ####
+	  for(i in 1:5){
+		    c[i] ~ dnorm(0,0.001) 
+			}
+		  # prior for intercept - fishiness
+		  d ~ dnorm(0,0.001)
+		  
+		  # prior for residual variance (precision) - fishiness
+		  tau.fish ~ dgamma(0.01,0.01) 
+		  sigma.fish <- sqrt(1/tau.fish) # gives sd 
+	  
 
-  #### prior for seagrass PCA @ hexagon level ####
-  for(i in 1:2){
-	  	e[i] ~ dnorm(0,.001)
+	  #### prior for seagrass PCA @ hexagon level ####
+	  for(i in 1:2){
+		  	e[i] ~ dnorm(0,.001)
+		  }
+
+		  # prior for intercept - hexagon sg PCA
+		  f ~ dnorm(0,.001)
+
+		  # prior for residual variance (precision) - hexagon sg PCA 
+		  tau.hexsgPCA ~ dgamma(.01,.01)
+		  sigma.hexsgPCA <- sqrt(1/tau.hexsgPCA)
+
+		  # prior for autocorrelation structure - hexagon sg PCA
+
+	  
+	  #### prior for seagrass PCA @ pointdata/receiver level ####
+		for(i in 1:2){
+			g[i] ~ dnorm(0,.001)
+		}
+		  # prior for intercept - point sg PCA
+			h ~ dnorm(0,.001)
+		  # prior for residual variance (precision) - point sg PCA 
+			tau.sgPCA ~ dgamma(0.01,0.01)
+		  sigma.sgPCA <- sqrt(1/tau.sgPCA)
+	  
+	  # prior for psi
+	   # psi <- sum(lambda[1:35])/B
+
+
+	  #########################################################
+	  ######### Likelihoods - data and process models #########	
+	  
+
+	  ### data model for sharkiness 
+	  for(i in 1:point.N){ 
+				group[i] 	~ dcat(probs[i]) # group is the site membership, for individual encounter history (one detection)
+				z[i] ~ dbern(psi[i])  # data augmentation vars, ('n' in data), occuring or not. 
+
+	    standard.shark[i] ~ dnorm(shark.mu[i],tau.shark) 
+	  
+	    shark.mu[i] <- b + z[i] + epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.sgPCA1[buffID[i]] 
+	  } 
+
+
+	  ### data model for fishiness 
+	  for(i in 1:hex.N){
+	    standard.hexfish[i] ~ dnorm(hexfish.mu[i],tau.fish) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexfish.mu[i] <- d + c[1]*standard.hexshark[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexdistcmg[i] + c[4]*standard.hexsgPCA1[i]
+		}
+
+
+	  ### site specific things: sgPCA for pointdata/receiver level (sharks) & the lambda for caluclatign Zi (the augmentation parameter for detection probability)
+	  for(i in 1:B){
+	    standard.sgPCA1[i] ~ dnorm(sgPCA.mu[i],tau.sgPCA)  # data model for seagrass PCA    
+	    sgPCA.mu[i] <- h + g[1]*standard.dist2shore[i] + g[2]*standard.distcmg[i]  # process model for seagrass PCA based on distance covariates and site group effect
+
 	  }
 
-	  # prior for intercept - hexagon sg PCA
-	  f ~ dnorm(0,.001)
+	  ### data model for sgPCA for hexdata/hexagon level (fishes) 
+	  for(i in 1:hex.N){
+	    standard.hexsgPCA1[i] ~ dnorm(hexsgPCA.mu[i],tau.hexsgPCA) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexsgPCA.mu[i] <- f + e[1]*standard.hexdist2shore[i] + e[2]*standard.hexdistcmg[i] 
+		}
 
-	  # prior for residual variance (precision) - hexagon sg PCA 
-	  tau.hexsgPCA ~ dgamma(.01,.01)
-	  sigma.hexsgPCA <- sqrt(1/tau.hexsgPCA)
+	  ######### derived parameters #########
+	  # for estmating total pathways 
+	  # write one for each route through the pathway diagram
+	  
+	  #path[1]<- g[1]*g[2] # point SG PCA ~ dist2shore + dist_cmg 
+	  #path[2]<- e[1]*e[2] # hex SG PCA ~ dist2shore + dist_cmg
+	  
+	  ## 26 May 2023: technically, paths 1 & 2 here should not be included. these paths should be paths that end at shark and fish. so it should actually be just the hab pathways that arrive at shark/fish, and the hab + shark/fish pathways that end at fish/shark respectively. Keeping for now, and not stopping the current MCMC run (model2a 200000iter, 25000burnin, 3 chains) because not sure they effect the runs of the other pathways but in next model run, remove. 
 
-	  # prior for autocorrelation structure - hexagon sg PCA
+	  path[1]<- g[1]*g[2]*a[4] # shark ~ dist2shore + dist_cmg + sgPCA
+	  path[2]<- e[1]*e[2]*c[4] # fish ~ dist2shore + dist_cmg + sgPCA
 
-  
-  #### prior for seagrass PCA @ pointdata/receiver level ####
-	for(i in 1:2){
-		g[i] ~ dnorm(0,.001)
-	}
-	  # prior for intercept - point sg PCA
-		h ~ dnorm(0,.001)
-	  # prior for residual variance (precision) - point sg PCA 
-		tau.sgPCA ~ dgamma(0.01,0.01)
-	  sigma.sgPCA <- sqrt(1/tau.sgPCA)
-  
-  # group-level effect of buffID on sg PCA. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
-  for(i in 1:B){
-    epsi_sgPCA[i]~ dnorm(0,tau.epsi_sgPCA)
-	}
-  tau.epsi_sgPCA ~ dunif(0,100)
-  sigma.epsi_sgPCA <- sqrt(1/tau.epsi_sgPCA)
+	  path[3]<- c[1] # fish ~ shark 
+	  path[4]<- a[1] # shark ~ fish
 
+	  path[5]<- g[1]*g[2]*a[4]*a[1] # shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
+	  path[6]<- e[1]*e[2]*c[4]*c[1] # fish ~ shark + dist2shore + dist_cmg + hexsgPCA: e2+3 are the effect of habtat on shark VIA their effect on seagrass, and c4 is the effect of seagrass, and c1 is the effect of sharks, on fish.    
 
-
-
-  #########################################################
-  ######### Likelihoods - data and process models #########	
-  
-  ### data model for sgPCA for pointdata/receiver level (sharks)
-  for(i in 1:B){
-    standard.sgPCA1[i] ~ dnorm(sgPCA.mu[i],tau.sgPCA)   
-  # process model for point-sgPCA ~ dist2shore + dist_cmg + epsi_site
-    sgPCA.mu[i] <- h + epsi_sgPCA[buffID[i]] + g[1]*standard.dist2shore[i] + g[2]*standard.distcmg[i] 
-  }
-
-  ### data model for sgPCA for hexdata/hexagon level (fishes) 
-  for(i in 1:hex.N){
-    standard.hexsgPCA1[i] ~ dnorm(hexsgPCA.mu[i],tau.hexsgPCA) 
-  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
-    hexsgPCA.mu[i] <- f + e[1]*standard.hexdist2shore[i] + e[2]*standard.hexdistcmg[i] 
-	}
+	  
+	  
+	}) # end of model code 
 
 
-  ### data model for sharkiness 
-  for(i in 1:point.N){
-    standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)   
-  # process model for sharkiness ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg ? + epsi_site?
-    shark.mu[i] <- b + epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.sgPCA1[i] # could be problematic that the value here is meant to come from data but is a estimated parameter above.
-  }
-  ### data model for fishiness 
-  for(i in 1:hex.N){
-    standard.hexfish[i] ~ dnorm(hexfish.mu[i],tau.fish) 
-  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
-    hexfish.mu[i] <- d + c[1]*standard.hexshark[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexdistcmg[i] + c[4]*standard.hexsgPCA1[i]
-	}
+	##########################
+	## Compile the model code
+	##########################
+		sitecovs<-as.matrix(data3[,c('standard.sgPCA1','standard.dist2shore','standard.distcmg')])
 
-  ######### derived parameters #########
-  # for estmating total pathways 
-  # write one for each route through the pathway diagram
-  
-  #path[1]<- g[1]*g[2] # point SG PCA ~ dist2shore + dist_cmg 
-  #path[2]<- e[1]*e[2] # hex SG PCA ~ dist2shore + dist_cmg
-  
-  ## 26 May 2023: technically, paths 1 & 2 here should not be included. these paths should be paths that end at shark and fish. so it should actually be just the hab pathways that arrive at shark/fish, and the hab + shark/fish pathways that end at fish/shark respectively. Keeping for now, and not stopping the current MCMC run (model2a 200000iter, 25000burnin, 3 chains) because not sure they effect the runs of the other pathways but in next model run, remove. 
+		myConstants2b<-list(point.N=560,hex.N=nrow(hexdata),B=max(pointdata$buffIDnum),J=3,buffID=pointdata$buffIDnum) 
 
-  path[1]<- g[1]*g[2]*a[4] # shark ~ dist2shore + dist_cmg + sgPCA
-  path[2]<- e[1]*e[2]*c[4] # fish ~ dist2shore + dist_cmg + sgPCA
+		myData2b<-list(
+		  # tell nimble the covariates 
+		  	# point data
+		  standard.shark = pointdata$standard.shark,
+		  standard.dist2shore = pointdata$standard.dist2shore,
+		  standard.distcmg = pointdata$standard.distcmg,
+		  #standard.lds = pointdata$standard.lds,
+		  #standard.mds = pointdata$standard.mds,
+		  standard.fish.pred = pointdata$standard.fish,
+		  standard.sgPCA1 = pointdata$standard.sgPCA1,
+		  	# hex data 
+		  standard.hexfish = hexdata$standard.hexfish,
+		  standard.hexshark = hexdata$standard.hexshark,
+		  standard.hexdist2shore = hexdata$standard.hexdist2shore,
+		  standard.hexdistcmg = hexdata$standard.hexdistcmg,
+		  #standard.hexlds = hexdata$standard.hexlds,
+		  #standard.hexmds = hexdata$standard.hexmds,
+		  standard.hexsgPCA1 = hexdata$standard.hexsgPCA1,
 
-  path[3]<- c[1] # fish ~ shark 
-  path[4]<- a[1] # shark ~ fish
+		  X = sitecovs # for calculating lamdba at each site
+		)
 
-  path[5]<- g[1]*g[2]*a[4]*a[1] # shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
-  path[6]<- e[1]*e[2]*c[4]*c[1] # fish ~ shark + dist2shore + dist_cmg + hexsgPCA: e2+3 are the effect of habtat on shark VIA their effect on seagrass, and c4 is the effect of seagrass, and c1 is the effect of sharks, on fish.    
+		z.inits<-c(rep(0,376),rep(1,184))
 
-  
-  
-}) # end of model code 
+		init.values2b<-list(a=rnorm(5,0,1),
+		b=rnorm(1),
+		c=rnorm(5,0,1),
+		d=rnorm(1),
+		e=rnorm(2,0,1),
+		f=rnorm(1),
+		g=rnorm(2,0,1),
+		h=rnorm(1),
+		tau.shark=rgamma(1,0.01,0.01),
+		tau.fish=rgamma(1,0.01,0.01),
+		tau.epsi_shark=runif(1,0,100),
+		z=z.inits)
+			
+		model2b<-nimbleModel(code=modelCode2b, name="model2b",data=myData2b,constants = myConstants2b,inits=init.values2b) #define the model
 
+		Cm2b<-compileNimble(model2b) # compile the model
 
-##########################
-## Compile the model code
-##########################
+	  # saveRDS(Cm2a,'nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
+		#	Cm2a<-readRDS('nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
 
-	myConstants2<-list(point.N=560,hex.N=nrow(hexdata),B=max(pointdata$buffIDnum),buffID=pointdata$buffIDnum) 
-	myData2<-list(
-	  # tell nimble the covariates 
-	  	# point data
-	  standard.shark = pointdata$standard.shark,
-	  standard.dist2shore = pointdata$standard.dist2shore,
-	  standard.distcmg = pointdata$standard.distcmg,
-	  #standard.lds = pointdata$standard.lds,
-	  #standard.mds = pointdata$standard.mds,
-	  standard.fish.pred = pointdata$standard.fish,
-	  standard.sgPCA1 = pointdata$standard.sgPCA1,
-	  	# hex data 
-	  standard.hexfish = hexdata$standard.hexfish,
-	  standard.hexshark = hexdata$standard.hexshark,
-	  standard.hexdist2shore = hexdata$standard.hexdist2shore,
-	  standard.hexdistcmg = hexdata$standard.hexdistcmg,
-	  #standard.hexlds = hexdata$standard.hexlds,
-	  #standard.hexmds = hexdata$standard.hexmds,
-	  standard.hexsgPCA1 = hexdata$standard.hexsgPCA1
-	)
+	##########################
+	## Compile & Run the MCMC
+	##########################
 
-	init.values2<-list(a=rnorm(5,0,1),b=rnorm(1),c=rnorm(5,0,1),d=rnorm(1),e=rnorm(2,0,1),f=rnorm(1),g=rnorm(2,0,1),h=rnorm(1),tau.shark=rgamma(1,0.01,0.01),tau.fish=rgamma(1,0.01,0.01),tau.epsi_shark=runif(1,0,100),tau.epsi_sgPCA=runif(1,0,100))
-		
-	model2a<-nimbleModel(code=modelCode2a, name="model2a",data=myData2,constants = myConstants2,inits=init.values2) #define the model
+		C2b.MCMC.output<-nimbleMCMC(code=modelCode2b,data=myData2b,constants= myConstants2b, inits=init.values2b,niter=5000,nburnin=1000,nchains=3,monitors=c('a','b','c','d','e','f','g','h','path','tau.epsi_shark','tau.fish','tau.shark','tau.epsi_sgPCA','z')) 
 
-	Cm2a<-compileNimble(model2a) # compile the model
+	##########################
+	## Posterior Inference 
+	##########################
 
-  # saveRDS(Cm2a,'nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
-	#	Cm2a<-readRDS('nimblemodelCompiled_model2a_BSEM_resourceChp3.RDS')
+		# numeric summaries
 
-##########################
-## Compile & Run the MCMC
-##########################
+		mcmc_summary_Cmodel2b<-MCMCsummary(C2b.MCMC.output,round=3,pg0=TRUE)%>%
+				tibble::rownames_to_column()%>%
+				rename_with(str_to_title)%>%
+				flextable()%>%
+				theme_alafoli()%>%
+				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+				align(align = 'center', part = 'all')%>%
+				font(fontname = 'Times', part = 'all')%>%
+				color(color='black',part='all')%>%
+				fontsize(size = 10, part = 'all')%>%
+				autofit()
 
-	C2a.MCMC.output<-nimbleMCMC(code=modelCode2a,data=myData2,constants= myConstants2, inits=init.values2,niter=50000,nburnin=2000,nchains=3,monitors=c('a','b','c','d','e','f','g','h','path','tau.epsi_shark','tau.fish','tau.shark','tau.epsi_sgPCA')) 
+		mcmc_summary_Cmodel2b
+			
 
-##########################
-## Posterior Inference 
-##########################
+			#save_as_image(mcmc_summary_Cmodel2b,'mcmc_summary_4chains_5000iter_1000burnin_model2b_nimbleBSEM.png',webshot='webshot')
 
-	# numeric summaries
-
-	mcmc_summary_Cmodel2a<-MCMCsummary(C2a.MCMC.output,round=3,pg0=TRUE)%>%
-			tibble::rownames_to_column()%>%
-			rename_with(str_to_title)%>%
-			flextable()%>%
-			theme_alafoli()%>%
-			set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
-			align(align = 'center', part = 'all')%>%
-			font(fontname = 'Times', part = 'all')%>%
-			color(color='black',part='all')%>%
-			fontsize(size = 10, part = 'all')%>%
-			autofit()
-
-		save_as_image(mcmc_summary_Cmodel2a,'mcmc_summary_4chains_5000iter_1000burnin_model2a_nimbleBSEM.png',webshot='webshot')
-
-	# caterpillar plots 
+		# caterpillar plots 
 
 
-	MCMCplot(C2a.MCMC.output,ci=c(50,95),params=c('a','c','e','g','path')) # point = median, thick line = 50% CI, thin line = 95% CI 
+		MCMCplot(C2b.MCMC.output,ci=c(50,95),params=c('path')) # point = median, thick line = 50% CI, thin line = 95% CI 
 
 
 
-	# trace and density plots
-
-	coeffNintercept<-colnames(samples_fourchains_C1aMCMC,do.NULL=TRUE,prefix='row')
+		# trace and density plots
 
 
-	MCMCtrace(C2a.MCMC.outputB,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
+		MCMCtrace(C2b.MCMC.output,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
 
+
+
+##########################################
+########### MODEL 2c, INCLUDING HEXAGONS and spatial autocorrelation
+
+	##########################
+
+	modelCode2c<-nimbleCode({
+	  
+	  ##########################
+	  ######### priors #########
+	  
+	  #### prior for sharkiness #### 
+	  for(i in 1:5){
+	    a[i] ~ dnorm(0,.001) 
+		}
+	  # prior for intercept - sharks 
+	  b ~ dnorm(0,.001)
+	  # prior for residual variance - sharks 
+	  tau.shark ~ dgamma(0.01,0.01) # 
+	  sigma.shark <- sqrt(1/tau.shark)
+	  
+	  # group-level effect of buffID on sharkiness. prior for variance (epsi_site) calculated from inverse of precision (epsi_site)
+	  for(i in 1:B){
+	    epsi_shark[i]~ dnorm(0,tau.epsi_shark)
+		}
+	  tau.epsi_shark ~ dunif(0,100)
+	  sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
+	  
+	  
+	  #### prior for fishiness (cross metric, hexagons) ####
+	  for(i in 1:5){
+		    c[i] ~ dnorm(0,0.001) 
+			}
+		  # prior for intercept - fishiness
+		  d ~ dnorm(0,0.001)
+		  
+		  # prior for residual variance (precision) - fishiness
+		  tau.fish ~ dgamma(0.01,0.01) 
+		  sigma.fish <- sqrt(1/tau.fish) # gives sd 
+	  
+
+	  #### prior for seagrass PCA @ hexagon level ####
+	  for(i in 1:2){
+		  	e[i] ~ dnorm(0,.001)
+		  }
+
+		  # prior for intercept - hexagon sg PCA
+		  f ~ dnorm(0,.001)
+
+		  # prior for residual variance (precision) - hexagon sg PCA 
+		  tau.hexsgPCA ~ dgamma(.01,.01)
+		  sigma.hexsgPCA <- sqrt(1/tau.hexsgPCA)
+
+		  # prior for autocorrelation structure - hexagon sg PCA
+
+	  
+	  #### prior for seagrass PCA @ pointdata/receiver level ####
+		for(i in 1:2){
+			g[i] ~ dnorm(0,.001)
+		}
+		  # prior for intercept - point sg PCA
+			h ~ dnorm(0,.001)
+		  # prior for residual variance (precision) - point sg PCA 
+			tau.sgPCA ~ dgamma(0.01,0.01)
+		  sigma.sgPCA <- sqrt(1/tau.sgPCA)
+	  
+	  # prior for psi
+	   # psi <- sum(lambda[1:35])/B # augmentation parameter
+
+		# prior for dcar_normal()
+   		sigma ~ dunif(0, 100)  
+    	tau <- 1 / sigma^2
+
+  ### latent process 
+   	s[1:hex.N] ~ dcar_normal(indexneigh[1:L], weights[1:L], num[1:hex.N], tau, zero_mean = 0)
+
+
+
+	  #########################################################
+	  ######### Likelihoods - data and process models #########	
+
+	  ### site specific things: sgPCA for pointdata/receiver level (sharks) & the lambda for caluclatign Zi (the augmentation parameter for detection probability)
+	  for(i in 1:B){
+	    standard.sgPCA1[i] ~ dnorm(sgPCA.mu[i],tau.sgPCA)  # data model for seagrass PCA    
+	    sgPCA.mu[i] <- h + g[1]*standard.dist2shore[i] + g[2]*standard.distcmg[i]  # process model for seagrass PCA based on distance covariates and site group effect
+
+	  }
+
+	  ### data model for sgPCA for hexdata/hexagon level (fishes) 
+	  for(i in 1:hex.N){
+	    standard.hexsgPCA1[i] ~ dnorm(hexsgPCA.mu[i],tau.hexsgPCA) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexsgPCA.mu[i] <- f + s[i] + e[1]*standard.hexdist2shore[i] + e[2]*standard.hexdistcmg[i] 
+		}
+
+	  ### data model for sharkiness 
+	  for(i in 1:point.N){
+	    standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)
+	  # process model for sharkiness ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg ? + epsi_site?
+	    shark.mu[i] <- b  + epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.dist2shore[i] + a[3]*standard.distcmg[i] + a[4]*standard.sgPCA1[buffID[i]] #+ z[buffID[i]]
+	  }
+
+	  ### data model for fishiness 
+	  for(i in 1:hex.N){
+	    standard.hexfish[i] ~ dnorm(hexfish.mu[i],tau.fish) 
+	  # process model for fishiness ~ shark + dist2shore + dist_cmg + prop_ldsg + prop_medsg  + epsi_fish
+	    hexfish.mu[i] <- d + s[i] + c[1]*standard.hexshark[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexdistcmg[i] + c[4]*standard.hexsgPCA1[i]
+		}
+
+	  ######### derived parameters #########
+	  # for estmating total pathways 
+	  # write one for each route through the pathway diagram
+	  
+	  #path[1]<- g[1]*g[2] # point SG PCA ~ dist2shore + dist_cmg 
+	  #path[2]<- e[1]*e[2] # hex SG PCA ~ dist2shore + dist_cmg
+	  
+	  ## 26 May 2023: technically, paths 1 & 2 here should not be included. these paths should be paths that end at shark and fish. so it should actually be just the hab pathways that arrive at shark/fish, and the hab + shark/fish pathways that end at fish/shark respectively. Keeping for now, and not stopping the current MCMC run (model2a 200000iter, 25000burnin, 3 chains) because not sure they effect the runs of the other pathways but in next model run, remove. 
+
+	  path[1]<- g[1]*g[2]*a[4] # shark ~ dist2shore + dist_cmg + sgPCA
+	  path[2]<- e[1]*e[2]*c[4] # fish ~ dist2shore + dist_cmg + sgPCA
+
+	  path[3]<- c[1] # fish ~ shark 
+	  path[4]<- a[1] # shark ~ fish
+
+	  path[5]<- g[1]*g[2]*a[4]*a[1] # shark ~ fish + dist2shore + dist_cmg + prop_ldsg + prop_medsg # with coeff for habitat as they went into fish and came through
+	  path[6]<- e[1]*e[2]*c[4]*c[1] # fish ~ shark + dist2shore + dist_cmg + hexsgPCA: e2+3 are the effect of habtat on shark VIA their effect on seagrass, and c4 is the effect of seagrass, and c1 is the effect of sharks, on fish.    
+
+	  
+	  
+	}) # end of model code 
+
+
+	##########################
+	## Compile the model code
+	##########################
+		#sitecovs<-as.matrix(data3[,c('standard.sgPCA1','standard.dist2shore','standard.distcmg')])
+		myConstants2c<-list(L = length(nbInfo$adj),point.N=560,hex.N=nrow(hexdata),weights = nbInfo$weights,indexneigh = nbInfo$adj,num = nbInfo$num,B=max(pointdata$buffIDnum),buffID=pointdata$buffIDnum) 
+		myData2c<-list(
+		  # tell nimble the covariates 
+		  	# point data
+		  standard.shark = pointdata$standard.shark,
+		  standard.dist2shore = pointdata$standard.dist2shore,
+		  standard.distcmg = pointdata$standard.distcmg,
+		  #standard.lds = pointdata$standard.lds,
+		  #standard.mds = pointdata$standard.mds,
+		  standard.fish.pred = pointdata$standard.fish,
+		  standard.sgPCA1 = pointdata$standard.sgPCA1,
+		  	# hex data 
+		  standard.hexfish = hexdata$standard.hexfish,
+		  standard.hexshark = hexdata$standard.hexshark,
+		  standard.hexdist2shore = hexdata$standard.hexdist2shore,
+		  standard.hexdistcmg = hexdata$standard.hexdistcmg,
+		  #standard.hexlds = hexdata$standard.hexlds,
+		  #standard.hexmds = hexdata$standard.hexmds,
+		  standard.hexsgPCA1 = hexdata$standard.hexsgPCA1
+
+		  #X = sitecovs # for calculating lamdba at each site
+		)
+
+		#z.inits<-c(rep(0,376),rep(1,184))
+
+		init.values2c<-list(a=rnorm(5,0,1),
+		b=rnorm(1),
+		c=rnorm(5,0,1),
+		d=rnorm(1),
+		e=rnorm(2,0,1),
+		f=rnorm(1),
+		g=rnorm(2,0,1),
+		h=rnorm(1),
+		tau.shark=rgamma(1,0.01,0.01),
+		tau.fish=rgamma(1,0.01,0.01),
+		tau.epsi_shark=runif(1,0,100),
+		s=rnorm(point.N)
+		)
+			
+		model2c<-nimbleModel(code=modelCode2c, name="model2c",data=myData2c,constants = myConstants2c,inits=init.values2c) #define the model
+
+		Cm2c<-compileNimble(model2c) # compile the model
+
+	##########################
+	## Compile & Run the MCMC
+	##########################
+
+		C2c.MCMC.output<-nimbleMCMC(code=modelCode2c,data=myData2c,constants= myConstants2c, inits=init.values2c,niter=5000,nburnin=1000,nchains=3,monitors=c('a','b','c','d','e','f','g','h','s','path','tau.epsi_shark','tau.fish','tau.shark','s')) 
+
+	##########################
+	## Posterior Inference 
+	##########################
+
+		# numeric summaries
+
+		mcmc_summary_Cmodel2c <- readRDS('mcmc_summary_Cmodel2c.RDS')
+		mcmc_summary_Cmodel2c<-MCMCsummary(C2c.MCMC.output,round=3,pg0=TRUE)%>%
+				tibble::rownames_to_column()%>%
+				rename_with(str_to_title)%>%
+				flextable()%>%
+				theme_alafoli()%>%
+				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+				align(align = 'center', part = 'all')%>%
+				font(fontname = 'Times', part = 'all')%>%
+				color(color='black',part='all')%>%
+				fontsize(size = 10, part = 'all')%>%
+				autofit()
+
+		tableCmcmc2c<-mcmc_summary_Cmodel2c%>%
+				tibble::rownames_to_column()%>%
+				rename_with(str_to_title)%>%
+				flextable()%>%
+				theme_alafoli()%>%
+				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+				align(align = 'center', part = 'all')%>%
+				font(fontname = 'Times', part = 'all')%>%
+				color(color='black',part='all')%>%
+				fontsize(size = 10, part = 'all')%>%
+				autofit()
+
+		mcmc_summary_Cmodel2c
+			
+
+			#save_as_image(mcmc_summary_Cmodel2b,'mcmc_summary_4chains_5000iter_1000burnin_model2b_nimbleBSEM.png',webshot='webshot')
+
+		# caterpillar plots 
+
+		MCMCplot(C2c.MCMC.output,ci=c(50,95),params=c('path')) # point = median, thick line = 50% CI, thin line = 95% CI 
+
+
+
+		# trace and density plots
+
+
+		MCMCtrace(C2c.MCMC.output,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
 
 
 

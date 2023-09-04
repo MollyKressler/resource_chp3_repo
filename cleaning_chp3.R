@@ -3,6 +3,7 @@
 ## created 3 Februry 2023, by Molly Kressler
 ## updated: 7 Feb. 2023 
 ## updated: 8 Feb. 2023
+## updated 10 AUgust 2023: updating habitat data used. Copied and pasted previous work from 7/2/2023 at the bottom and amended there. 
 
 #### HABITAT JOINING will need updating when I get the updated year-specific remote sensed habitat maps from Emily Courmier. Acquisition TBD. 
 
@@ -174,6 +175,64 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 
 
 ############ 
+
+
+
+
+
+
+############ ############ ############ ############ ############ 
+############ 10 August 2023 - UPDATING WITH DATA FROM EMILY COURMIER -  SPATIAL: (B) import BRUVS data into sf. (C) join habitat to BRUVS locations. (E) some figures of BRUV location and a table with BRUV data and habitat data 
+
+## import cleaned combined BRUVS data - since we already calculated shannons and diversity abovve, we are importing that data set, removing the habitat data and proceeding from Step C. We'll skip D, and move on to E-table.
+	dd <- read.csv('resource_chp3/bruvs_data_cleaned_sd_and_hg.csv')%>%
+		dplyr::select(-X)%>%
+		dplyr::filter(BRUV_ID!='NA')
+
+	br<-st_as_sf(dd,coords=c('Longitude','Latitude'),crs='WGS84')
+	br
+	ggplot()+geom_sf(data=br)+theme_bw() # all good. 
+
+
+## (C) join habitat data to BRUVS location [temporary - updated year specific data coming from Emily soon]
+### some BRUVS occur close to the edge of the land mass which is cut out of the habitat grid. So need to use an sf function which joins the point to the nearest grid cell -- try st_overlaps, st_touches, st_crosses. 
+
+	hab.grid<-st_as_sf(st_read('winter2020habitat_hexagon_grid_ECdata.shp'),crs='WGS84')
+
+	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')
+
+	hab.noland<-st_as_sf(st_read('winter2020habitat_hexagon_grid_noLAND_ECdata.shp'),crs='WGS84')
+
+	ggplot()+geom_sf(data=hab.noland,alpha=0.3,col='goldenrod2')+geom_sf(data=br,fill='cadetblue3',col='cadetblue3')+geom_sf(data=land,fill='grey82',col='grey70',alpha=0.3)+theme_bw() # all good. 
+
+	joined<-st_join(br,hab.noland,join=st_nearest_feature)
+	joined
+
+## (D) calculate distance to nearest shore 
+
+	joined<-joined%>%mutate(dist2shore=as.numeric(st_distance((joined),st_union(land))),.before='geometry')
+	# save 
+	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.shp',driver='ESRI Shapefile')
+	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.csv',driver='CSV')
+		#joined<-st_as_sf(st_read('bruvs_data_joinedWITHhabitat_feb23.shp'))
+
+
+## (E) Just need to update the tables: BRUV data and habitat data 
+
+	table.info<-joined%>%
+		dplyr::select(BRUV,Season,spp_abundance,spp_richness,SW_Species,SW_Families,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae,prp_lds,prp_mds,prp_hds,prp_vgg,prp_brr,dist2shore)
+	tab2<-as.data.frame(table.info)%>%
+		dplyr::select(-geometry)
+	names(tab2)
+	table<-flextable(tab2)%>%set_header_labels(BRUV='ID',spp_abundance='Abundance',spp_richness='Richness',SW_Species='H, species',SW_Families='H, families')%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 10, part = 'all')%>%color(color='black',part='all')%>%colformat_double(digits=3)%>%set_header_labels(prop_brs='Bare Sand',prop_ldsg='Low Density Seagrass',prop_medsg='Medium Density Seagrass',prop_hdsg='High Density Seagrass',prop_sarg='Sargassum',prop_urb_r='Urban & Rocky',prop_deep='Deep Water',dist2shore='Distance to Nearest Shore (m)')%>%autofit()
+	save_as_image(table,'resource_chp3/figures+tables/bruvs_table_data_joinedwithhabitat.png',zoom=2,webshot='webshot')
+
+
+
+############ 
+
+
+
 
 
 

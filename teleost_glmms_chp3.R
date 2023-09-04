@@ -4,6 +4,7 @@
 
 ## created 8 February 2023, by Molly Kressler
 ## updated 13 & 14 February 2023 - BRTs example for gbm.auto package. I need to be able to run the models and export the surfaces (spatially formatted predictions). I'll test the package functionality usign the dataset they provide. 
+## updated 10 August 2023, new habitat data from Emily COurmier. Need to re-run full BRTs to run simplified BRTs in 'comparing_simmplifiedBRTS_chp3_neater.R'
 
 
 ############ ############ ############ ############ ############ 
@@ -11,7 +12,12 @@
 
 # colors for figures: by season, wet = cadetblue3 and dry = tomato4
 
+pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effects,forcats,gbm3)
+setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 
+
+############ ############ ############ ############ ############ 
+## deprecated, pre-August 2023 (see  below for August 2023 updates)
 ############ ############ ############ ############ ############ 
 # DATASETS, load at the start ######## ############ ############ 
 
@@ -90,7 +96,7 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effec
 		#sw2<-gbm.loop(loops=10,samples=samples,expvar=c(2,13:20),resvar=c('SW_Species'),tc=c(9),lr=c(0.001,0.001),bf=0.9,fam1='bernoulli',fam2='gaussian',savedir='/Users/mollykressler/Documents/data_phd/resource_chp3',calcpreds=TRUE,savegbm=TRUE,multiplot=TRUE,)
 
 ## going to work through the tutorial top to bottom for SW Speces to see if I can get what I want: diversity index predictions into the hab.noland grid.
-
+		
 pacman::p_load(gbm,tidyverse,sf,ggplot2,dismo)
 
 ## using gbm.bfcheck to rule out bag fractions 
@@ -412,6 +418,177 @@ hab.noland<-st_as_sf(st_read('hexagon_grid_study_site_with_habitatFromSOSF_forch
 # Gerreidae
 	gerr.plot<-ggplot()+geom_sf(data=sf4preds,aes(fill=btGerPD),col=NA)+scale_fill_distiller(palette='YlOrRd',direction=1,limits=c(0,50),guide=guide_colourbar(title='Predicted Abundance \n\ of Gerreidae'))+facet_grid(cols=vars(Season),labeller=season.labels)+theme_minimal()+geom_sf(data=land,fill='gray98')+theme_bw()
 	ggsave(gerr.plot,file='figures+tables/BRT_gerreidae_feb23/abundance_Gerreidae_BRTpreds_feb23.png',device='png',units='in',height=8,width=10,dpi=1000)
+
+
+
+############ ############ ############ ############ ############ 
+############ ############ ############ ############ ############ 
+############ ############ ############ ############ ############ 
+# BRTS - updated August 2023, copy and pasted from before
+############ ############ ############ ############ ############ 
+
+pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effects,forcats,gbm3)
+	
+	joined_df<-read.csv('bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.csv')
+	joined_df$BRUV<-as.factor(joined_df$BRUV)
+	joined_df$Season<-as.factor(joined_df$Season)
+	joined_df$SW_Species<-as.numeric(joined_df$SW_Species)
+	joined_df$SW_Families<-as.numeric(joined_df$SW_Families)
+
+## RUN MODELS (or READ IN model objects)
+## use gbm.step() to both cross validate the number of trees to use, and then run that model. 
+
+	# SW species
+	sw1<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Species'),tree.complexity=3,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 1800 trees, resid dev = .243
+	sw_species2<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Species'),tree.complexity=3,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 1550 trees, resid dev .249
+		sw_species1<-sw1
+	names(sw_species2)
+	summary(sw_species2)
+	summary(sw1) # plots, and tables, the influence of each variable. 
+	saveRDS(sw_species1,'resource_chp3/model_RDS/SW_Species_brt_tc9_lr001_gaussian_aug23.RDS')
+	saveRDS(sw_species2,'resource_chp3/model_RDS/SW_Species_brt_tc3_lr001_gaussian_aug23.RDS') ## use tc3
+	
+	# SW Families 
+	sw_families1<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Species'),tree.complexity=9,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 1500 trees, resid dev 0.208
+	sw_families2<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Families'),tree.complexity=3,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 750 trees, resid dev= 0.113
+	names(sw_families1)
+	summary(sw_families1)
+	summary(sw_families2)
+	plot(sw_families2$residuals)
+	saveRDS(sw_families1,'resource_chp3/model_RDS/SW_Families_brt_tc9_lr001_gaussian_aug23.RDS')
+	saveRDS(sw_families2,'resource_chp3/model_RDS/SW_Families_brt_tc3_lr001_gaussian_aug23.RDS')
+
+
+	# Gerreidae - 27 February 2023 - as gamma distributed. Gamma distributions don't allow for zeros, so add a constant to all data points for Gerreidae. You also have to use the github version of gbm to access this update (to run a gamma distribution)
+	
+		# gbm.step is from dismo. 
+		# need to use gbm function from gbm3/gbm to use gamma distribution
+
+	#library('devtools')
+	install_github("gbm-developers/gbm3"), have nstalled before so should only need to load with pacman
+
+	pacman::p_load(gbm3)
+
+	joined_df<-joined_df%>%mutate(Gerr_Gamma=Gerreidae+0.01)
+
+
+	hist(joined_df$Gerreidae)
+	## trying a Poisson - it is count data, and gmb/gbm3 has capacity. 
+	gerrPoisson<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('Gerreidae'),tree.complexity=3,learning.rate=0.0001,bag.fraction=0.5,family='poisson',plot.main = TRUE)  ## 11.022 reisd dev, 1700 trees
+		## looks awful, but its what I meant with before and it runs
+
+	summary.gbm(gerrPoisson)
+
+
+	saveRDS(gerrPoisson,'resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_aug23.RDS')
+
+	# bag fraction = the fraction of the training set observations randomly selected to propose the next tree in the expansion
+## output of gbm.step explained 
+	# $fitted = the fitted values form the final tree. on the response scale. 
+	# $fitted.vars = the variance of the fitted values, on the resposne scale
+	# $residuals = the residuals of the fitted values, on the response scale. 
+	# $contributons  = relative importance of the variables. 
+	# $self.statistics = evaluation statistics, calculated on fitted values. Shows 'fit' of the model on the training data. NOT to be reported as model performance. 
+	# $cv.statistics = most appropriate for evaluation. 
+	# $weights = the weights used in fitting the models. defualt is 1. 
+	# cv.values = the mean of CV (cross validating) estmates of predictive deviance. Calculated at each stagewise step. This is used in the auto-generated plots of tress versus deviance. 
+	# $cv.loss.ses = standard errors in CV estimates of predictive deviance at each step in the stagewise process
+	# $cv.roc.matrix = matrix of the values for area under the curve estimated on the excluded data, instead of deviance in the cv.loss.matrix.
+
+
+	# read in model objects 
+	sppfull<-readRDS('resource_chp3/model_RDS/SW_Species_brt_tc3_lr001_gaussian_aug23.RDS')
+	famfull<-readRDS('resource_chp3/model_RDS/SW_Families_brt_tc9_lr001_gaussian_aug23.RDS')
+	gerrfull<-readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_aug23.RDS')
+
+## EVALUATE MODELS
+# extract the data on relative influence of each variable. and plot it. 
+	hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
+	# SW Species 
+	infl.swsp<-sw_species2$contributions
+	swspp.relinf<-infl.swsp%>%
+		mutate(var=fct_reorder(var,rel.inf))%>%
+		ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+			geom_bar(stat='identity')+scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,65),guide='none')+
+			theme_bw()+
+			coord_flip()+
+			scale_x_discrete(labels=hab.labels)+
+			ylab('Relative Influence')+
+			xlab(NULL)
+		ggsave(swspp.relinf,file='resource_chp3/figures+tables/BRT_sw_species_feb23/relative_influence_vars_in_SWsppBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+
+	# SW Families 
+	infl.swf<-sw_families2$contributions
+	swf.relinf<-infl.swf%>%
+		mutate(var=fct_reorder(var,rel.inf))%>%
+			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+			geom_bar(stat='identity')+
+			scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
+			theme_bw()+
+			coord_flip()+
+			scale_x_discrete(labels=hab.labels)+ylab('Relative Influence')+
+			xlab(NULL)
+		ggsave(swf.relinf,file='resource_chp3/figures+tables/BRT_sw_families_feb23/relative_influence_vars_in_SWfamiliesBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+
+	# Gerreidae
+	infl.gerr<-gerr2$contributions
+	gerr.relinf<-infl.gerr%>%
+		mutate(var=fct_reorder(var,rel.inf))%>%
+		ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+			geom_bar(stat='identity')+
+			scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
+			theme_bw()+
+			coord_flip()+
+			scale_x_discrete(labels=hab.labels)+
+			ylab('Relative Influence')+
+			xlab(NULL)	
+	ggsave(gerr.relinf,file='resource_chp3/figures+tables/BRT_gerreidae_feb23/relative_influence_vars_in_GerreidaeBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+
+## Predict into sf4pred 
+	{df4preds<-read.csv('winter2020habitat_hexagon_grid_NOland_ECdata.csv')%>%
+			slice(rep(1:n(),each=2))%>%
+			mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
+			df4preds$jcode<-as.factor(df4preds$jcode)
+			df4preds$Season<-as.factor(df4preds$Season)}
+			summary(df4preds)
+
+	{sf4preds<-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')%>%
+			slice(rep(1:n(),each=2))%>%
+			mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
+			sf4preds$jcode<-as.factor(sf4preds$jcode)
+			sf4preds$Season<-as.factor(sf4preds$Season)}
+			summary(sf4preds)
+
+full.models<-c('sppfull','famfull','gerrfull')
+
+for(i in full.models){
+	mod<-get(i)
+	predicts<-predict.gbm(mod,df4preds,n.trees=mod$gbm.call$best.trees,type='response')
+	predicts<-as.data.frame(predicts)
+	predicts.df<-bind_cols(df4preds,predicts)
+
+	dry<-predicts.df%>%filter(Season!='W')
+	wet<-predicts.df%>%filter(Season=='W')
+	sf.dry<-sf4preds%>%filter(Season=='D')%>%mutate(preds=dry$predicts)
+	sf.wet<-sf4preds%>%filter(Season=='W')%>%mutate(preds=wet$predicts)
+	sf4preds3<-bind_rows(sf.dry,sf.wet)
+	new=paste0(i,'PD')
+	sf4preds<-sf4preds3%>%dplyr::rename_with(.fn=~paste0(new),.cols='preds')
+	}
+
+	# back transform the gerreidae (poisson, log)
+	sf4preds<-sf4preds%>%mutate(bt.gerr.fullPD=exp(.$gerrfullPD),.before='geometry')
+
+	# save the updated sf4preds and df4preds
+		st_write(sf4preds,'sf_for_predictions_fromBRTs_aug23.shp',append=FALSE) # append command set to FALSE replaces the old file with the new one. If set to TRUE it would add the new data as further layers.
+		st_write(sf4preds,'sf_for_predictions_fromBRTs_aug23.csv',delete_layer=TRUE,delete_dsn=TRUE)
+
+
+
+
+
+
+
 
 
 
