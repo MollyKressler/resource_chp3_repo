@@ -394,6 +394,7 @@ setwd('/Users/mollykressler/Documents/data_phd')
 			w2
 		
 		## standardise dist2jetty, relPropPD,depth
+		summary(w2)
 			w3 <- w2 %>% 				
 				mutate(standard.relPropPD=((as.numeric(relPropPD)-mean(as.numeric(relPropPD)))/sd(as.numeric(relPropPD))),.before='geometry')%>%
 				mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.before='geometry')%>%
