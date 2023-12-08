@@ -23,6 +23,17 @@
 	## Update data frames with new habitat data from Emily Courmier - processed in 'loading_cleaning_habitatdata_EmilyCourmier.R' & formatted into hexagons, buffers, and detections in 'joininghab2detections_ghostsremoved_EmilyChabitatdata.R'
 	## add depth of NEAREST receiver to hexdata (fishiness)
 
+## 10 October 2023: new metric for predation pressure
+	## relPropPD doesn't make (the best) biological sense - a receiver with high Ns of large shark detections doesn't have a 'real' and high predation risk if no or few juvenile sharks also use that area. 
+	## develop a cooccurence metric of juveniles with large sharks within an hour at each receiver
+		## need filtered detections of juveniles
+		## detections of large sharks
+	## apply to pointdata, and join by nearest feature for hexdata
+
+## 16 November 2023: new metric for predation pressure, 'pressure' = the co-occurence of juveniles and large sharks adjusted for the number of days of co-occurences relative to length of observation period
+	## apply to pointdata, and join by nearest feature for hexdata
+	## apply to hexdata, and join by nearest feature for hexdata
+
 
 ########################################################
 ########################################################
@@ -327,9 +338,9 @@ setwd('/Users/mollykressler/Documents/data_phd')
 
 		## update file to include jetty and dist2jetty information
 		st_write(df1shp2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
-		st_write(df1shp2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp',driver='ESRI Shapefile',append=FALSE)
+		st_write(df1shp2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp',driver='ESRI Shapefile')
 
-	## probPred - (1) calculate receiver specific detection probabilities; (2) join them to df1/pointdata. 
+	## DEPRECATED probPred - (1) calculate receiver specific detection probabilities; (2) join them to df1/pointdata. 
 		## sum(predator dettections total in year) = dT
 		## sum(predator detections at receiver 'x' in year) = dX
 		### Pr(predators using the area over a year relative to other receivers) = dX / dT. 
@@ -408,12 +419,110 @@ setwd('/Users/mollykressler/Documents/data_phd')
 		st_write(w2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp',driver='ESRI Shapefile',append=FALSE)
 
 	## deltaTemp - by receiver 
-		workingpointdata <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp'),crs='WGS84')%>%
+		workingpointdata <- st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp'),crs='WGS84')%>%
 				rename(buffIDnum=bffIDnm,standard.shark=stndrd_s,standard.fish=stndrd_f,standard.dist2shore=stndr_2,standard.distcmg=stndrd_d,standard.lds=stndrd_l,standard.mds=stndrd_m,standard.hds=stndrd_h)
+ # November 2023 - 'pressure' metric of predator and juvenile co-occurence 
+	# working pointdata df
+	pp<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.csv')%>%
+		dplyr::select(buffIDnum,standard.distcmg)
+	head(pp)
+	pointdataTEST<-st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp'),crs='WGS84')%>%
+		rename(buffIDnum=bffIDnm,standard.shark=stndrd_s,standard.fish=stndrd_f,standard.dist2shore=stndr_2,standard.lds=stndrd_l,standard.mds=stndrd_m,standard.hds=stndrd_h, dist2jetty=dst2jtt,standard.depth=stndrd_dp,pressure=pressur,standard.distcmg=stndrd_ds)%>%
+		dplyr::select(-pressure) # updating pressure
+	## don't run every time, check: weirdly got rid of some vars, so adding them back 
+		pointdata2 <- left_join(pointdata,pp,by='buffIDnum',relationship='many-to-many')%>%
+			rename(std.2jetty=standard.dist2jetty,std.2cmg=standard.distcmg)
+		pointdata2
+
+	## pressure metric df
+	c <- st_as_sf(st_read('coocurrencemetrics_withHabitat4winter2020_fromEC_nov23.shp'),crs='WGS84')%>%
+		select(pressure, geometry)
+	c
+
+	## join by rID with st_nearest_feature
+
+	j <- st_join(df22, c, join=st_nearest_feature)
+	j
+
+	## standardise and mean centre 
+	jj <- j %>% 
+		mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure))),.before=geometry) %>%
+		select(-standard.dist2jetty,-standard.press) ## too many file names which match when shortened by ESRI driver. so you need to do these at the load in. 
 
 
 
+	######### 
+	## save/update file to include pressure metric
+	######### 
+		st_write(jj,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+		write_sf(jj,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp',driver='ESRI Shapefile',append = FALSE)
 
+	### 01/12/2023: There are duplicated rows in the final dataset - multipel rows of a reciever at PIT number. Post hoc removing it an will re-write this section of code at a later date. 
+	### FIX HERE
+	working<-st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp'),crs='WGS84')%>%
+		rename(buffIDnum=bffIDnm,
+			standard.shark=stndrd_s,
+			standard.fish=stndrd_f,
+			standard.dist2shore=stndr_2,
+			standard.lds=stndrd_l,
+			standard.mds=stndrd_m,
+			standard.hds=stndrd_h, 
+			dist2jetty=dst2jtt,
+			standard.depth=stndrd_dp,
+			pressure=pressur,
+			standard.distcmg=stndrd_ds)%>%
+			mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure))),.before=geometry) %>%
+			mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
+
+	noduplicates <- working %>%
+		distinct(PIT,rID,.keep_all=T)%>%
+		dplyr::select(-standard.press,-
+standard.dist2jetty) # for some reason the driver wont write the file this big, so I remove these and recaluclate them in the data upload
+	noduplicates
+
+	st_write(noduplicates,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+	write_sf(noduplicates,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp',driver='ESRI Shapefile',append = FALSE)
+
+  ## Error in dataframe - standard.distcmg and standard.dist2shore are the same values. 4/12/23023
+	# 1. extract dist2shore and distcmg for each buffer from the august version of the data. call this the repair set. 
+	august <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp'),crs='WGS84')
+	august
+	repairset <- august %>% 
+		dplyr::select(buffID_x,dist_cmg,dist2shore) %>%
+		rename(rID = buffID_x) %>%
+		group_by(rID) %>%
+		distinct()
+	repairset # this will take a while to generate because of the nrow and distinct function 
+
+	# 2. join modelling dataframe 1 as updated in december 2023 to repairset, and recaluclate the standardised versions of distcmg and dist2shore
+	df2 <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp'),crs='WGS84')%>%
+		rename(buffIDnum=bffIDnm,
+			standard.shark=stndrd_s,
+			standard.fish=stndrd_f,
+			standard.dist2shore=stndr_2,
+			standard.lds=stndrd_l,
+			standard.mds=stndrd_m,
+			standard.hds=stndrd_h, 
+			dist2jetty=dst2jtt,
+			standard.depth=stndrd_dp,
+			pressure=pressur,
+			standard.distcmg=stndrd_ds)
+	stopifnot(nrow(pointdata)==560) # check 
+	df22 <- st_join(df2, repairset%>%dplyr::select(-rID))%>%
+		mutate(standard.dist2shore = ((as.numeric(dist2shore)-mean(as.numeric(dist2shore)))/sd(as.numeric(dist2shore))))%>%
+		mutate(standard.distcmg = ((as.numeric(dist_cmg)-mean(as.numeric(dist_cmg)))/sd(as.numeric(dist_cmg))),.before=sgPCA1)%>%
+		dplyr::select(-dist_cmg,-dist2shore)	## dataframe gets too big with everything so remove none standardised vars 
+	stopifnot(nrow(df22)==560) # check, dataframe is prone to duplicatign when 
+	df22
+
+	# 3. save df22 as CSV and SHP 
+
+		st_write(df22,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+		
+		write_sf(df22,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp',driver='ESRI Shapefile',append = FALSE)
+
+
+###############################
 ### Modelling dataframe 2
 
 	# join pruse and fishes
@@ -430,7 +539,7 @@ setwd('/Users/mollykressler/Documents/data_phd')
 		stopifnot(nrow(fishes)==nrow(combo.sf2))
 
 	## save as shp and csv
-		st_write(combo.sf2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.shp',driver='ESRI Shapefile',append=FALSE)
+		st_write(combo.sf2,'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.shp',driver='ESRI Shapefile',append=FALSE)
 		st_write(combo.sf2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
 
 	#### STANDARDISE & MEAN-CENTRED
@@ -448,7 +557,8 @@ setwd('/Users/mollykressler/Documents/data_phd')
 		summary(data2)
 		hist(data2$standard.hexdistcmg)
 
-	####  deprecated - see notes in Phd notebook4.2, 15/8/2023 Principal component analysis for seagrass (hex)
+	####  reinstated 21/09/2023 - see notes in Phd notebook4.2, 15/8/2023 Principal component analysis for seagrass (hex)
+		data2 <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.csv')%>%mutate(jcode=as.numeric(jcode)) # for data import on 21/09/2023
 		# examine correlation 
 		cor(data2$standard.hexlds,data2$standard.hexmds) # - 0.454, moderate correlation
 
@@ -456,15 +566,15 @@ setwd('/Users/mollykressler/Documents/data_phd')
 		sapply(data2,class)
 		data3<-as_tibble(data2)
 
-		hexpca1<-prcomp(data3[,5:8])
+		hexpca1<-prcomp(data3[,6:7])
          
-		summary(hexpca1)	 # PCA2 contributes nothing further 	
+		summary(hexpca1)	 	
 		plot(hexpca1,type='lines') # pc2 eigen value is below the threshodl for meaningness. 
 		hexpca1$sdev^2 # eigenvalues for each component
 		hexpca1$rotation # look at loading coefficiations, eignenvectors. Loadings illustrate the association between each PC and the original vars. high loading = more contribution
-		biplot(hexpca1,cex=0.5) # they contribute opposite 
+		biplot(hexpca1,cex=0.5) # angle between them is greater than 90º indicating a negative association between the variables (makes sense)
 
-		# seems like PCA2 is a better 
+		# PCA1 captures more of the variance, the variables have a negative association 
 
 		data2$standard.hexsgPCA1<-predict(hexpca1)[,1]
 		summary(data2)	
@@ -516,7 +626,7 @@ setwd('/Users/mollykressler/Documents/data_phd')
 	## 
 
 
-	## relProbPD and depthReceiver by nearest receiver, and standardise dist2jetty
+	## DEPRECATED relProbPD and depthReceiver by nearest receiver, and standardise dist2jetty
 		fd <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.shp'),crs='WGS84') %>%
 			rename(standard.hexshark=stndrd_hxs,standard.hexfish=stndrd_hxf,standard.hexdist2shore=stndrd_h2,standard.hexdistcmg=stndrd_hxd,standard.hexlds=stndrd_hxl,standard.hexmds=stndrd_hxm)
 		hp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'),crs='WGS84')
@@ -532,6 +642,75 @@ setwd('/Users/mollykressler/Documents/data_phd')
 
 		st_write(data2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.shp',driver='ESRI Shapefile',append=FALSE)
 		st_write(data2,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+
+
+	## 16 November 2023: new 'pressure' metric for co-occurence of juveniles and large sharks 
+		## 17/11/2023 unclear where the files for the shp have gone - only the dbf remains. So re-spatially matchign using jcode and the empty hexagon grid from file 'winter2020habitat_hexagon_grid_NOland_ECdata.shp'
+			hexdata<-read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_aug23.csv')%>%mutate(jcode=as.character(jcode))
+			head(hexdata)
+			grid <- st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')%>%
+				select(jcode,geometry)
+				grid
+
+			## join the grid with the csv
+				matched <- left_join(hexdata,grid, by='jcode')
+			## convert to sf 
+				hexsf <- st_as_sf(matched)
+			## save
+				st_write(hexsf,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp',driver='ESRI Shapefile',append=FALSE)
+
+		## import data
+		hexsf22 <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'),crs='WGS84')%>%
+			rename(standard.hexshark = stndrd_hxs,
+				standard.hexfish = stndrd_hxf,
+				standard.hexdist2shore = stndrd_h2,
+				standard.hexdistcmg = stndrd_hxd,
+				standard.hexlowdensg = stndrd_hxl,
+				standard.hexmeddensg = stndrd_hxm,
+				standard.depth = stndrd_d,
+				standard.dist2jetty = stndrd_d2,
+				pressure = pressur,
+				standard.sgPCA1 = st_PCA1)
+
+
+		## join pressure data to hexsf
+			## pressure metric df
+			c <- st_as_sf(st_read('coocurrencemetrics_withHabitat4winter2020_fromEC_nov23.shp'),crs='WGS84')%>%
+				select(pressure, geometry)
+			c
+
+			hexsf2 <- st_join(hexsf, c, join=st_nearest_feature)
+
+		## standardise pressure 
+
+			hexsf3 <- hexsf2 %>%
+				mutate(standard.hexpress=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure))),.before=geometry)
+		########
+		## save 
+		########
+		st_write(hexsf3,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp',driver='ESRI Shapefile',append=FALSE)
+		st_write(hexsf3,'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+
+
+	
+
+
+
+
+
+
+
+
+
+
+##########################################
+## Code graveyard
+##########################################
+
+
+
+
+
 
 
 
