@@ -97,8 +97,9 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
 		trees<-as.numeric(mod$n.trees)
 		info$n.trees[info$model==i]<-trees
 			}
-	
-	info2<-info%>%mutate(note=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & high density seagrasses,  distance to shore','low & medium density seagrasses,  distance to shore'))%>%flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
+
+	info2<-infoB%>%
+		mutate(note=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & high density seagrasses,  distance to shore','low & medium density seagrasses,  distance to shore'))%>%flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
 
 	save_as_image(info2,'resource_chp3/BRTS_outputs/ntrees_and_deviance_of_full_and_simpleBRTS_chp3.png',webshot='webshot')
 
@@ -112,8 +113,9 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
     gerrfull<-readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_aug23.RDS')
 
 
-	info<-as.data.frame(matrix(ncol=3,nrow=4))
-	colnames(info)=c('model','deviance','n.trees')
+	info<-as.data.frame(matrix(ncol=4,nrow=4))
+	colnames(info)=c('model','modelnames','deviance','n.trees')
+	info$modelnames<-c('Species Full','Gerridae Full','Species Simplified','Gerridae Simplified')
 	info$model<-c('sppfull','gerrfull','sppsimple','gerrsimple')
 	for(i in info$model){
 		mod<-get(i)
@@ -124,6 +126,8 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
 			}
 	
 	info2<-info%>%
+		dplyr::select(-model)%>%
+		rename('Model' = modelnames)%>%
 		mutate('Parameters Included'=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & medium density seagrasses,  distance to shore'))%>%
 		flextable()%>%
 		set_header_labels(model='Model', deviance = 'Deviance')%>%
@@ -134,7 +138,7 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
 		color(color='black',part='all')%>%
 		autofit()
 
-	save_as_image(info2,'resource_chp3/BRTS_outputs/ntrees_and_deviance_of_full_and_simpleBRTS_chp3.png',webshot='webshot')
+	save_as_image(info2,'resource_chp3/BRTS_outputs/ntrees_and_deviance_of_full_and_simpleBRTS_chp3.png',webshot='webshot',res=650)
 
 #(skip evaluating, because for the purpose of comparing we just need the end plots)
 
@@ -167,7 +171,7 @@ for(i in simple.models){
 
 
 # Plot 
-	{sf4preds<-st_as_sf(st_read('sf_for_predictions_fromBRTs_aug23.shp'),crs='WGS84')
+	{sf4preds<-st_as_sf(st_read('resource_chp3/sf_for_predictions_fromBRTs_aug23.shp'),crs='WGS84')
 	sf4preds$jcode<-as.factor(sf4preds$jcode)
 	sf4preds$Season<-as.factor(sf4preds$Season)}
 
@@ -183,12 +187,6 @@ for(i in simple.models){
 	ggsave(gerr.simple.plot,file='resource_chp3/BRTS_outputs/simplified_BRT_Gerreidaebacktransformed_preds_aug23.png',device='png',units='in',height=8,width=10,dpi=1000)
 	ggsave(spp.simple.plot,file='resource_chp3/BRTS_outputs/simplified_BRT_SpeciesSWbacktransformed_preds_aug23.png',device='png',units='in',height=8,width=10,dpi=1000)
 	ggsave(fam.simple.plot,file='resource_chp3/BRTS_outputs/simplified_BRT_FamilySWbacktransformed_preds_aug23.png',device='png',units='in',height=8,width=10,dpi=1000)
-
-
-
-###YOU LEFT OFF HERE
-
-
 
 	# compare the predicted full vs predicted simple versus real distirbutions with boxplots (predicted) and points from raw data
 		# real = joined_df
@@ -219,38 +217,48 @@ for(i in simple.models){
 
 		# plot 
 			season.labels<-as_labeller(c('D'='Dry','W'='Wet'))
-			indices.labels<-as_labeller(c('fmfllPD'='SW Families (full)',
-				'sppflPD'='SW Species (full)',
-				'famsimpPD'='SW Families (simplified)',
-				'sppsimpPD'='SW Species (simplified)'))
+			indices.labels<-as_labeller(c('sppsimpPD'='SW Families (simplified)',
+				'sppflPD'='SW Species (full)'))#,
+				#'famsimpPD'='SW Families (simplified)',
+				#'sppsimpPD'='SW Species (simplified)'))
 			gerr.labels<-as_labeller(c('bt_g_PD'='Gerreidae (full)','
 				btGerSmPD'='Gerreidae (simplified)'))
 
 			famspp_preds<-pred.long%>%dplyr::filter(model!=c('bt_g_PD','btGerSmPD'))			
 			famspp_raw<-raw.long2%>%dplyr::filter(model!=c('bt_g_PD'))%>%dplyr::filter(model!=c('btGerSmPD'))
-			summary(famspp_raw)
+			summary(famspp_preds)
 
 			indices.plot<-ggplot(pred.long%>%dplyr::filter(model!=c('bt_g_PD','btGerSmPD')),aes(x=model,y=preds))+
 				geom_boxplot()+
-				geom_jitter(data=famspp_raw,aes(x=model,y=preds),pch=19,alpha=0.7,col='orange3')+
+				geom_jitter(data=famspp_raw,aes(x=model,y=preds),pch=19,alpha=0.7,col='#3a6c74')+
 				ylab(lab='Diversity Index Value')+
 				xlab(lab='Model')+
 				scale_x_discrete(labels=indices.labels)+
 				theme_bw()+
 				theme(axis.text.x = element_text(angle = 30,vjust=0.5,size=10))
 
-			gerr.plot<-	ggplot(pred.long%>%dplyr::filter(model==c('bt_g_PD','btGerSimPD')),aes(x=model,y=preds))+geom_boxplot()+geom_jitter(data=raw.long2%>%dplyr::filter(model==c('bt_g_PD','btGerSimPD')),aes(x=model,y=preds),pch=19,alpha=0.7,col='orange3')+ylab(lab='Values (count)')+xlab(lab='Model')+scale_x_discrete(labels=gerr.labels)+theme_bw()+ theme(axis.text.x = element_text(angle = 30,vjust=0.5,size=10))
+			gfullpredlong <- pred.long %>% filter(model=='bt_g_PD')
+			gsimppredlong <- pred.long %>% filter(model=='btGerSimPD')
+
+			gerr.plot<-	ggplot(pred.long%>%dplyr::filter(model==c('bt_g_PD','btGerSmPD')),aes(x=model,y=preds))+
+				geom_boxplot()+
+				geom_jitter(data=raw.long2%>%dplyr::filter(model==c('bt_g_PD','btGerSmPD')),aes(x=model,y=preds),pch=19,alpha=0.7,col='#3a6c74')+
+				ylab(lab='Values (count)')+xlab(lab='Model')+
+				scale_x_discrete(labels=c('Gerreidae (full)','Gerreidae (simplified)'))+
+				theme_bw()+ 
+				theme(axis.text.x = element_text(angle = 30,vjust=0.5,size=10))
 
 			comparison <- indices.plot + gerr.plot + plot_annotation( title = 'Predicted Values versus Observations, for Full and Simplified Models')
 
-			ggsave(comparison,file='resource_chp3/BRTS_outputs/Predicted Values versus Observations, for Full and Simplified Models_AUGUST2023.png',device='png',units='in',height=6,width=12,dpi=1000)
+			ggsave(comparison,file='resource_chp3/BRTS_outputs/Predicted Values versus Observations, for Full and Simplified Models_AUGUST2023.png',device='png',units='in',height=6,width=8.5,dpi=850)
 
 			# Now - not moving forward with SW Families. So remake plots with Spp Index and re-combien with gridExtra with Gerreidae
 
 			spponly.plot<-ggplot(famspp_preds%>%filter(model!='famsimpPD')%>%filter(model!='fmfllPD'),aes(x=model,y=preds))+geom_boxplot()+
-				geom_jitter(data=famspp_raw%>%filter(model!='famsimpPD')%>%filter(model!='fmfllPD'),aes(x=model,y=preds),pch=19,alpha=0.7,col='orange3')+
+				geom_jitter(data=famspp_raw%>%filter(model!='famsimpPD')%>%filter(model!='fmfllPD'),aes(x=model,y=preds),pch=19,alpha=0.7,col='#3a6c74')+
 				ylab(lab='Diversity Index Value')+
-				xlab(lab='Model')+scale_x_discrete(labels=indices.labels)+
+				xlab(lab='Model')+
+				scale_x_discrete(labels=indices.labels)+
 				theme_bw()+ 
 				theme(axis.text.x = element_text(angle = 30,vjust=0.5,size=10))
 
@@ -304,8 +312,14 @@ st_write(simplified.predictions,'resource_chp3/predictions_from_simplifiedBRTs_G
 
 ########################
 
-### YOU LEFT OFF HERE 
-	spp.hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass')
+### import data 
+
+	sppsimple<-readRDS('resource_chp3/model_RDS/simplified_speciesShannonIndex_BRT_aug23_highDenSgANDseasonremoved.RDS')
+	gerrsimple<-readRDS('resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT_aug23_highDenSgANDseasonremoved.RDS')
+    sppfull<-readRDS('resource_chp3/model_RDS/SW_Species_brt_tc3_lr001_gaussian_aug23.RDS')
+    gerrfull<-readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_aug23.RDS')
+
+	spp.hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
 	gerr.hab.labels<-(c('prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','dist2shore'='Dist. to Shore (m)','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass'))
 
 # Influence of vars 
@@ -316,34 +330,40 @@ st_write(simplified.predictions,'resource_chp3/predictions_from_simplifiedBRTs_G
 	spp.relinf<-infl.spp%>%mutate(var=fct_reorder(var,rel.inf))%>%
 		ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
 		geom_bar(stat='identity')+
-		scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
+		scale_fill_gradient(low='#3cbcfc',high='#3a6c74', space='Lab',guide='none', aesthetics='fill')+
 		theme_bw()+
 		coord_flip()+
-		scale_x_discrete(labels=hab.labels)+
+		scale_x_discrete(labels=spp.hab.labels)+
 		ylab('Relative Influence')+
+		ggtitle('Species Diversity Simplified BRT ')+
 		xlab(NULL)
 
-		ggsave(spp.relinf,file='resource_chp3/BRTS_outputs/relative_influence_vars_in_simpifiedSWSpeciesBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+		ggsave(spp.relinf,file='resource_chp3/BRTS_outputs/relative_influence_vars_in_simpifiedSWSpeciesBRT_aug23.png',device='png',units='in',height=4,width=6,dpi=450)
 	
-	gerr.relinf<-infl.gerr%>%mutate(var=fct_reorder(var,rel.inf))%>%ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+geom_bar(stat='identity')+scale_fill_distiller(direction=1,palette='Oranges',guide='none',limits=c(0,60))+theme_bw()+coord_flip()+scale_x_discrete(labels=gerr.hab.labels)+ylab('Relative Influence')+xlab(NULL)
-		ggsave(gerr.relinf,file='resource_chp3/BRTS_outputs/relative_influence_vars_in_simplifiedGerreidaeBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
-
+	gerr.relinf<-infl.gerr%>%mutate(var=fct_reorder(var,rel.inf))%>%ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+		geom_bar(stat='identity')+
+		scale_fill_gradient(low='#3cbcfc',high='#3a6c74', space='Lab',guide='none', aesthetics='fill')+
+		theme_bw()+
+		coord_flip()+
+		ggtitle('Gerreidae Simplified BRT ')+
+		scale_x_discrete(labels=gerr.hab.labels)+
+		ylab('Relative Influence')+xlab(NULL)
+	gerr.relinf
+		ggsave(gerr.relinf,file='resource_chp3/BRTS_outputs/relative_influence_vars_in_simplifiedGerreidaeBRT_aug23.png',device='png',units='in',height=4,width=6,dpi=450)
+ 
 # Fitted values for dist2shore
 
-		a1<-plot(sppsimple,'dist2shore',return.grid=TRUE)
+		preds <- read.csv('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_SWSpecies_aug23.csv')
 
-		b1<-plot(gerrsimple,'dist2shore',return.grid=TRUE)
-
-		dist2shorefitted_values_simplifiedmodels
-		ggplot()+
-			geom_smooth(data=a1,aes(x=dist2shore,y=y),fill='orange1',col='grey26',alpha=0.5)+
-			geom_smooth(data=b1,aes(x=dist2shore,y=y),fill='darkorchid4',alpha=0.5,col='grey26')+
+		dist2shorefitted_values_simplifiedmodels<-ggplot()+
+			geom_smooth(data=preds,aes(x=dist2shore,y=sppsimpPD),fill='3a6c74',col='grey26',alpha=0.5)+
+			geom_smooth(data=preds,aes(x=dist2shore,y=btGerSmPD),fill='3cbcfc',alpha=0.5,col='grey26')+
 			xlab('Distance to Shore (m)')+
 			ylab('Fitted Values')+
 			scale_x_continuous(limits=c(0,1800))+
 			scale_y_continuous()+
 			theme_bw()
-
+	dist2shorefitted_values_simplifiedmodels
 		ggsave(dist2shorefitted_values_simplifiedmodels,file='resource_chp3/BRTS_outputs/smoothed_fittedvalues_simplifiedSWSpeciesINorange_and_SimplifiedDist2ShoreINpurple_fittedvalues_BRT_feb23.png',device='png',unit='in',height=6,width=9,dpi=800)
 
 
@@ -355,8 +375,25 @@ st_write(simplified.predictions,'resource_chp3/predictions_from_simplifiedBRTs_G
 	sppsimple.gbmint$rank.list
 	gbm.perspec(sppsimple,3,2)
 
+# Diagnostic plots - QQs 
 
+head(preds)
 
+gerr.simple.qq <- ggplot(data=preds, aes(sample = btGerSmPD))+
+	stat_qq(size=1,pch=21)+
+	labs(title='Simplified Gerridae BRT', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+	stat_qq_line(linetype=2, col='red')+
+	theme_bw()
+	gerr.simple.qq
+	ggsave(gerr.simple.qq,file = 'resource_chp3/BRTS_outputs/quantilequantile_plot_gerrsimple.png', dpi=850, unit= 'in', height = 4, width = 4)
+
+spp.simple.qq <- ggplot(data=preds, aes(sample = sppsimpPD))+
+	stat_qq(size=1,pch=21)+
+	labs(title='Simplified Species Diversity Index BRT', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+	stat_qq_line(linetype=2, col='red')+
+	theme_bw()
+	spp.simple.qq
+	ggsave(spp.simple.qq,file = 'resource_chp3/BRTS_outputs/quantilequantile_plot_sppsimple.png', dpi=850, unit= 'in', height = 4, width = 4)
 
 
 

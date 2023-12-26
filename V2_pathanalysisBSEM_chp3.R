@@ -4,6 +4,7 @@
 
 ## created 10 May 2023 by Molly M Kressler 
 
+### this is a test line to see if repos on server are pulling properly from my local macbook
 
 ###################################
 ########## RUN AT OPEN ############
@@ -181,9 +182,9 @@ stopifnot(nrow(hexdata)==2663) # check
 		## coefficients for distance metrics are from process models of those predictors
 		## paths 1-3 assess the support of the effect of the primary parameter, e.g. pressure, on juvenile spatial baheviour as that primary parameter is determined/influenced by the abiotic habitat features, e.g. depth  
 
-		path[1] <-  j[4] * c[3] * a[1] # fish dredge informed path: fish sg distcmg dist2shore
+		path[1] <-  j[1] * j[2] * j[3] * j[4] * a[4]  # seagrass dredge informed path: sg dist2jetty dist2shore distcmg 
 
-		path[2] <-  j[1] * j[2] * j[3] * j[4] * a[4]  # seagrass dredge informed path: sg dist2jetty dist2shore distcmg 
+		path[2] <-  j[4] * c[3] * a[1] # fish dredge informed path: fish sg distcmg dist2shore
 
 		path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty
 
@@ -283,7 +284,7 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		# trace and density plots
 
-		MCMCtrace(samples3b,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
+		MCMCtrace(samplesList3b,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
 
 
 	###########################################################
@@ -303,6 +304,7 @@ stopifnot(nrow(hexdata)==2663) # check
 				rename(Parameter = Rowname, '% of posterior with \n\ same sign as estimate' = 'P>0', Estimate = 'Mean','lower'='5%',upper='95%')%>%
 				mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
 				dplyr::select(-lower,-upper,-Sd)%>%	
+				filter(Parameter!=c('value[1]','value[2]'))%>%
 				flextable()%>%
 				theme_zebra()%>%
 				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
@@ -342,7 +344,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		caterpillars <- ggplot(d3b, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value))+
 			stat_pointinterval(.width=c(.50,.95),point_size=2)+
 			ylab('Path ID')+
-			xlab('Estimate (median) & CI (.5,.95)')+
+			xlab('Estimate (mean) & CI (.5,.95)')+
 			geom_vline(xintercept=0,linetype=3)+
 			theme_bw()
 		caterpillars	

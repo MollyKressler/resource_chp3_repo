@@ -22,7 +22,7 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 
 # DATE FRAME: bruvs data and habitat data (using sep22 updated habitat SOSF) joined together, with dist2shore calculated
 
-	joined_df<-read.csv('bruvs_DATAFRAME_joinedWITHhabitat_feb23.csv')
+	joined_df<-read.csv('resource_chp3/bruvs_DATAFRAME_joinedWITHhabitat_feb23.csv')
 
 # SHAPEFILE(S): land and water with grid
 
