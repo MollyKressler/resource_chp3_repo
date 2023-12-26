@@ -4,7 +4,7 @@
 
 ## created 10 May 2023 by Molly M Kressler 
 
-### this is a test line to see if repos on server are pulling properly from my local macbook
+### this is a test line to see if repos on server are pulling properly from my local macbook. It worked in the direction local -> repo -> server. Tryignt he other direction now. test test 
 
 ###################################
 ########## RUN AT OPEN ############
