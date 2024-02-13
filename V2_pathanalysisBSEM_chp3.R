@@ -3,7 +3,7 @@
 ## Code and approach here heavily inspired by modelling code from paper Bennett, S., Harris, M. P., Wanless, S., Green, J. A., Newell, M. A., Searle, K. R., & Daunt, F. (2022). Earlier and more frequent occupation of breeding sites during the non‐breeding season increases breeding success in a colonial seabird. Ecology and Evolution, 12(9). https://doi.org/10.1002/ece3.9213.
 
 ## created 10 May 2023 by Molly M Kressler 
-
+## test 8/2/2024
 ### this is a test line to see if repos on server are pulling properly from my local macbook. It worked in the direction local -> repo -> server. Trying the other direction now. test test. Test Test Test. 
 
 ###################################
