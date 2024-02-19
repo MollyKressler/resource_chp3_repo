@@ -363,6 +363,76 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_dec2023.png' ,webshot='webshot')
 
 #############################
+## - Residuals checking: histograms of residuals, and standardsised residuals versus fitted, looking for heteroscedasticity
+## 19 Feb 2024, following feedback from RBS
+	
+	pacman::p_load(tidyverse, sf, ggplot2, cowplot, patchwork,lme4)
+	# color guide
+	  navy: '#3a6c74'; 
+	  #for multiple colors: 
+	  c('#3a6c74','#708d8e','#3cbcfc')
+	
+	# R Server, read in model RDS
+	sgm <- readRDS('~/resource/data_and_RDS_NOTforupload/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
+	fm <- readRDS('~/resource/data_and_RDS_NOTforupload/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
+	pm <- readRDS('~/resource/data_and_RDS_NOTforupload/largesharks_pressure_glm_hypotesting_distancemetrics_dec23.RDS')
+
+	hexdata<-read.csv('~/resource/data_and_RDS_NOTforupload/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%
+	  mutate(jcode=as.numeric(jcode))%>%
+	  rename(standard.hexsgPCA1 = st_PCA1)
+
+	pointdata <- read.csv('~/resource/data_and_RDS_NOTforupload/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
+	  mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
+	  mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
+	
+  # histogram of residuals
+	sgm.histresiduals <- ggplot(data = hexdata, aes(x = sgm$residuals)) +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
+	  labs(title = 'Seagrass PCA', x = 'Residuals', y = 'Frequency')+
+	  theme_bw()
+	fm.histresiduals <- ggplot(data = hexdata, aes(x = fm$residuals)) +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
+	  labs(title = 'Fish Metric', x = 'Residuals', y = 'Frequency')+
+	  theme_bw()
+	pm.histresiduals <- ggplot(data = pointdata, aes(x = pm$residuals)) +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
+	  labs(title = 'Pressure', x = 'Residuals', y = 'Frequency')+
+	  theme_bw()
+	
+	stacked.bedtdredge.residualsHistograms <- sgm.histresiduals / fm.histresiduals / pm.histresiduals
+	
+	ggsave(stacked.bedtdredge.residualsHistograms, file = '~/resource/data_and_RDS_NOTforupload/figures_and_tables/dredgebestmodel_HISTresiduals_fish_sg_pressure_feb24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+	
+	## residuals versus fitted, plots
+    sgm.resids <- resid(sgm)
+    fm.resids <- resid(fm)
+    pm.resids <- resid(pm)
+    
+    sgm.fitted.resids <- ggplot(data = sgm, aes(x=.fitted, y=.resid))+
+      geom_point(color = '#3a6c74') +
+      geom_hline(yintercept = 0,)+
+      labs(title='', x='Fitted', y='Residuals')+
+      theme_bw()
+    fm.fitted.resids <- ggplot(data = fm, aes(x=.fitted, y=.resid))+
+      geom_point(color = '#3a6c74') +
+      geom_hline(yintercept = 0,)+
+      labs(title='', x='Fitted', y='Residuals')+
+      theme_bw()
+    pm.fitted.resids <- ggplot(data = pm, aes(x=.fitted, y=.resid))+
+      geom_point(color = '#3a6c74') +
+      geom_hline(yintercept = 0,)+
+      labs(title='', x='Fitted', y='Residuals')+
+      theme_bw()
+
+    
+    stacked.bestdredge.residualsVSfitted <- sgm.fitted.resids / fm.fitted.resids / pm.fitted.resids
+    
+    ggsave(stacked.bestdredge.residualsVSfitted, file = '~/resource/data_and_RDS_NOTforupload/figures_and_tables/dredgebestmodel_residualsVSfitted_fish_sg_pressure_feb24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+    
+    
+    
+	
+#############################
 ## - Prediction plots GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
 #############################
 
