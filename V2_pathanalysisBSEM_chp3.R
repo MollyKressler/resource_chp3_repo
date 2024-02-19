@@ -357,8 +357,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		
 		## For R Server
 		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
-		install.packages('devtools')
-		devtools::install_github('caseyyoungflesh/MCMCvis', build_vignettes = TRUE)		
+		pacman::p_load(MCMCvis)
 		
 		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 		##
@@ -367,16 +366,15 @@ stopifnot(nrow(hexdata)==2663) # check
 		pathwayresults_table
 
 		#### YOU LEFT OFF HERE: the to do list:
-			## change the name of the paths to text that describes the path, e.g. Juvenile sharks ~ seagrass + abiotics(listed)
-			## force support column header into two rows 
- 
+    ## 19 Feb 2024: pg0 is the proportion greater than 0, need to mutate the column to make it different from zero. a case_when i think will work. I couldn't run this on the server so need to double back on the macbook.
 		pathwayresults_table <- MCMCsummary(samplesList3b,round=3,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
 				rename(Pathway = Rowname, '% of posterior with \n\ same sign as estimate' = 'P>0', Estimate = 'Mean','lower'='5%',upper='95%')%>%
 				mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
 				mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
-				dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd)%>%	
+		  mutate(pg00 = case_when(Estimate > 0 ~ as.numeric(pg0), Estimate < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%  
+				dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
 				flextable()%>%
 				compose(i=1,j=1, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish \n\ (path 1)'))%>%
 				compose(i=2,j=1, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses \n\ (path2)'))%>%
