@@ -355,6 +355,13 @@ stopifnot(nrow(hexdata)==2663) # check
 	## Table: pathway description, estimates, CI and Support ##
 	###########################################################
 		
+		## For R Server
+		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
+		install.packages('devtools')
+		devtools::install_github('caseyyoungflesh/MCMCvis', build_vignettes = TRUE)		
+		
+		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		##
 		samplesList3b %>% filter(Rowname=='path')
 		
 		pathwayresults_table
