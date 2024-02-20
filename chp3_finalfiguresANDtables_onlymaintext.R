@@ -1,10 +1,10 @@
 ### Final Figures code for Chapter 3: Risk or Resource
 
 ## compiling code for figures in final manuscript, not including supporting information tables and figures
-# test 
+
 #####
-pacman::p_load(sf, tidyverse, lubridate, ggplot2, patchwork, cowplot, flextable,MuMIn,ggplot2,lme4,stats,ggeffects,gtsummary)
-setwd('/Users/mollykressler/Documents/data_phd/')
+pacman::p_load(sf, tidyverse, lubridate, ggplot2, patchwork, cowplot, flextable,MuMIn,ggplot2,lme4,stats,ggeffects,gtsummary, MCMCvis)
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 #####
 
 ###################
@@ -13,7 +13,8 @@ setwd('/Users/mollykressler/Documents/data_phd/')
 
 	meta <- read.csv('habitat_model/no ghosts of 6hr threshold/biometric_and_metadata_for_habsel_glmers_dec22.csv')%>%dplyr::select(-X)
 
-	meta_flex<-flextable(meta%>%dplyr::select(-pit, -period))%>%
+	meta_flex<-flextable(meta%>%dplyr::select(-pit, -period)%>%
+      mutate_if(is.numeric, round, digits = 3))%>%
 		set_header_labels(sex = 'Sex',average_duration_hours = 'Average Duration\nbetween Detection (hours)',min_duration_hours = 'Minimum Duration\nbetween Detection (hours)',max_duration_days = 'Maximum Duration\nbetween Detection (days)',days = 'Days at\nLiberty',pcl = 'Pre-Caudal\nLength (cm)')%>%
 		theme_zebra()%>%
 		align(align = 'center', part = 'all')%>%
