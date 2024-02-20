@@ -7,7 +7,7 @@
 
 
 ## Load Workspace and Files 
-setwd('/Users/mollykressler/Documents/data_phd')
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm,patchwork)
 
 # shapefiles, useful for plotting
@@ -98,8 +98,10 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
 		info$n.trees[info$model==i]<-trees
 			}
 
-	info2<-infoB%>%
-		mutate(note=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & high density seagrasses,  distance to shore','low & medium density seagrasses,  distance to shore'))%>%flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
+	info2<-info%>%
+		mutate(note=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & high density seagrasses,  distance to shore','low & medium density seagrasses,  distance to shore'))%>%
+			mutate_if(is.numeric, round, digits = 3)%>%
+			flextable()%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 11, part = 'all')%>%color(color='black',part='all')%>%autofit()
 
 	save_as_image(info2,'resource_chp3/BRTS_outputs/ntrees_and_deviance_of_full_and_simpleBRTS_chp3.png',webshot='webshot')
 
@@ -129,6 +131,7 @@ saveRDS(simple.model,'resource_chp3/model_RDS/simplified_GerriesShannonIndex_BRT
 		dplyr::select(-model)%>%
 		rename('Model' = modelnames)%>%
 		mutate('Parameters Included'=c('low, medium, & high density seagrasses, season (W/D), distance to shore','low, medium, & high density seagrasses, season (W/D), distance to shore','low & medium density seagrasses, distance to shore','low & medium density seagrasses,  distance to shore'))%>%
+		mutate_if(is.numeric, round, digits = 3)%>%
 		flextable()%>%
 		set_header_labels(model='Model', deviance = 'Deviance')%>%
 		theme_zebra()%>%
