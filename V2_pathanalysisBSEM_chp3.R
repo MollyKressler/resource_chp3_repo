@@ -3,8 +3,7 @@
 ## Code and approach here heavily inspired by modelling code from paper Bennett, S., Harris, M. P., Wanless, S., Green, J. A., Newell, M. A., Searle, K. R., & Daunt, F. (2022). Earlier and more frequent occupation of breeding sites during the non‐breeding season increases breeding success in a colonial seabird. Ecology and Evolution, 12(9). https://doi.org/10.1002/ece3.9213.
 
 ## created 10 May 2023 by Molly M Kressler 
-## test 8/2/2024
-### this is a test line to see if repos on server are pulling properly from my local macbook. It worked in the direction local -> repo -> server. Trying the other direction now. test test. Test Test Test. 
+
 
 ###################################
 ########## RUN AT OPEN ############
@@ -13,7 +12,7 @@
 ## Load Workspace 
 
 pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr)
-setwd('/Users/mollykressler/Documents/data_phd')
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
 #####################################################
 ###### DF 1, for process model for sharkiness  ######
@@ -288,8 +287,10 @@ stopifnot(nrow(hexdata)==2663) # check
 
 
 	###########################################################
-	## Caterpillar plots with tudybayes to show small values ##
+	## Summary Table & Caterpillar plots with MCMCvis & tidybayes to show small values ##
 	###########################################################
+
+		## Feb 2024 - need to amend the pg0
 
 		pacman::p_load(tidybayes,bayesplot,ggdist,nlist,forcats,patchwork)
 
@@ -301,10 +302,13 @@ stopifnot(nrow(hexdata)==2663) # check
 		mcmc_summary_Cmodel3b_samplesListfromRDS<-MCMCsummary(samplesList3b,round=3,probs=c(0.05,0.95),pg0=TRUE)%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
-				rename(Parameter = Rowname, '% of posterior with \n\ same sign as estimate' = 'P>0', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+			rename('pg0'='P>0')%>%
+		  mutate(pg00 = case_when(Mean > 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
+				rename(Parameter = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
 				mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
-				dplyr::select(-lower,-upper,-Sd)%>%	
+				dplyr::select(-lower,-upper,-Sd, -pg0)%>%	
 				filter(Parameter!=c('value[1]','value[2]'))%>%
+				mutate_if(is.numeric, round, digits = 3)%>%
 				flextable()%>%
 				theme_zebra()%>%
 				set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
@@ -314,6 +318,7 @@ stopifnot(nrow(hexdata)==2663) # check
 				fontsize(size = 10, part = 'all')%>%
 				autofit()
 		mcmc_summary_Cmodel3b_samplesListfromRDS
+
 		save_as_image(mcmc_summary_Cmodel3b_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter20000_burn2000_chains3_4dec2023.png',res=850)	
 
 		# grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
@@ -354,7 +359,9 @@ stopifnot(nrow(hexdata)==2663) # check
 	###########################################################
 	## Table: pathway description, estimates, CI and Support ##
 	###########################################################
-		
+		## For local macbook
+		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+
 		## For R Server
 		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
 		pacman::p_load(MCMCvis)
@@ -367,25 +374,34 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		#### YOU LEFT OFF HERE: the to do list:
     ## 19 Feb 2024: pg0 is the proportion greater than 0, need to mutate the column to make it different from zero. a case_when i think will work. I couldn't run this on the server so need to double back on the macbook.
-		pathwayresults_table <- MCMCsummary(samplesList3b,round=3,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
+
+		pathwayresults_table <- MCMCsummary(samplesList3b,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
-				rename(Pathway = Rowname, '% of posterior with \n\ same sign as estimate' = 'P>0', Estimate = 'Mean','lower'='5%',upper='95%')%>%
-				mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
-				mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
-		  mutate(pg00 = case_when(Estimate > 0 ~ as.numeric(pg0), Estimate < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%  
-				dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
-				flextable()%>%
-				compose(i=1,j=1, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish \n\ (path 1)'))%>%
-				compose(i=2,j=1, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses \n\ (path2)'))%>%
-				compose(i=3,j=1, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Predator Pressure \n\ (path 3)'))%>%
-				compose(i=4,j=1, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty  \n\ (path 4)'))%>%
+			rename('pg0'='P>0')%>%
+		  	mutate(pg00 = case_when(Mean > 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
+			arrange(-pg00)%>%
+			rename(Pathway = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+			mutate(Estimate = round(Estimate, 3))%>%
+			mutate(lower = case_when(Path != 1 ~ round(lower,3), Path == 1 ~ round(lower,5)),upper = case_when(Path != 1 ~ round(upper,3), Path == 1 ~ round(upper,5)))%>%
+			mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
+			mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
+			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+			dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
+			flextable()%>%
+				compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
+				compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
+				compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Predator Pressure'))%>%
+				compose(i=4,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty'))%>%
 				theme_zebra()%>%
-				align(j=2:3, align = 'center', part = 'all')%>%
+				align(j=3:4, align = 'center', part = 'all')%>%
 				font(fontname = 'Arial', part = 'all')%>%
 				color(color='black',part='all')%>%
 				fontsize(size = 10, part = 'all')%>%
 				autofit()
+		pathwayresults_table
+
 		save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model3b_niter20000_burn2000_chains3_4dec2023.png')	
 
 
