@@ -15,7 +15,7 @@ https://rdrr.io/cran/MuMIn/man/dredge.html
 pacman::p_load(tidyverse,MuMIn,ggplot2,flextable,cowplot,patchwork,lme4,stats,ggeffects,gtsummary)
   options(na.action = "na.fail")
 
-setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/resource_chp3')
 
 pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
 			mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
