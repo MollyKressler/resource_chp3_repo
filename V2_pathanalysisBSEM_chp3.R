@@ -194,6 +194,16 @@ stopifnot(nrow(hexdata)==2663) # check
 		value[1] <-  j[1] * j[2] * j[3] * j[4] # path 2, shore * refuge * jetty
 		value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
 
+		### predictions based on paths 2 & 3
+
+		for(v in 1:30){
+		p2.mu[v] <- j[4]*shore.p2.dum[v]*cmg.dum[v] * c[3]*sg.dum[v] * a[1]*fish.dum[v]
+			} # problem(?) here is that the values of 'v' for different things dont relate. so is this the nesting thing? where I need to have it run through all 30 of shore.p2.dum, holding c3 and a1 to means; then repeat for c3 and a1? Do do I actually need three dataframes for path 2, one for each predictor/coeff where it runs from min to max and the others hold constant? but then how to bring them together. 22/2/2024
+
+		for(z in 1:30){
+		p3.mu[z] <- e[1]*shore.p3.dum[z] * e[2]*standard.pointdepth[z]* e[3]*standard.pointdist2jetty[z] * e[4]*standard.pointdist2jetty[z]*standard.pointdepth[z]* a[7]*standard.pointpress[z]
+			}
+
 	}) # end of model code 
 
 
@@ -201,7 +211,7 @@ stopifnot(nrow(hexdata)==2663) # check
 	## Compile the model code
 	##########################
 
-		myConstants3b<-list(point.N=560,hex.N=2663,B=max(pointdata$buffIDnum),buffID=pointdata$buffID)
+		myConstants3b<-list(point.N=560,hex.N=2663,B=max(pointdata$buffIDnum),buffID=pointdata$buffID, v = nrow(path2.dum), z = nrow(path3.dum))
 
 		myData3b<-list(
 		  # tell nimble the covariates 
@@ -220,8 +230,16 @@ stopifnot(nrow(hexdata)==2663) # check
 		  standard.hexdistcmg = hexdata$standard.hexdistcmg,
 		  standard.hexdist2jetty = hexdata$standard.dist2jetty,
 		  standard.hexsg = hexdata$st_PCA1,
-		  standard.hexdist2jetty = hexdata$standard.dist2jetty
-		)
+		  standard.hexdist2jetty = hexdata$standard.dist2jetty,
+		  sg.dum = path2.dum$sg.dum,
+		  cmg.dum = path2.dum$cmg.dum,
+		  shore.p2.dum = path2.dum$shore.dum,
+		  shore.p3.dum = path3.dum$shore.dum,
+		  depth.dum = path3.dum$depth.dum,
+		  jetty.dum = path3.dum$jetty.dum,
+		  fish.dum = path2.dum$fish.dum,
+		  press.dum = path3.dum$press.dum
+			)
 
 		init.values3b<-list(a=rnorm(7,0,1),
 			b=rnorm(1),
@@ -259,6 +277,8 @@ stopifnot(nrow(hexdata)==2663) # check
 			samples3b <- runMCMC(ccMCMC3b,niter=10000, nburnin=2000, nchains=3,samplesAsCodaMCMC = TRUE);beep(2)
 
 		saveRDS(samples3b,'resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		
+		saveRDS(samples3b,'resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_22feb2024.RDS')
 		
 		mcmc_summary_Cmodel3b<-MCMCsummary(samples3b,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
@@ -334,6 +354,16 @@ stopifnot(nrow(hexdata)==2663) # check
 
 			write.csv(d3b,'resource_chp3/nimblemodel_outputs/samples3b_spreadlong_model3b_niter10000_burn2000_chains3_4dec2023.csv')
 
+			draws_3b_a <- gather_draws(samplesList3b,a[])%>%
+				group_by(.chain)%>%
+				mutate(a.index = rep(1:7, each=8000))%>%
+				mutate(aa = paste0(.variable,a.index))%>%
+				ungroup()
+			draws_3b_a
+
+
+
+
 		## pivot_wider to spread the pathID column into multiple columns, and fill with .value. 
 
 			w3b <- pivot_wider(d3b%>%dplyr::select(-pathIDnum), names_from=pathID, values_from=.value)
@@ -372,9 +402,6 @@ stopifnot(nrow(hexdata)==2663) # check
 		
 		pathwayresults_table
 
-		#### YOU LEFT OFF HERE: the to do list:
-    ## 19 Feb 2024: pg0 is the proportion greater than 0, need to mutate the column to make it different from zero. a case_when i think will work. I couldn't run this on the server so need to double back on the macbook.
-
 		pathwayresults_table <- MCMCsummary(samplesList3b,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
@@ -405,8 +432,55 @@ stopifnot(nrow(hexdata)==2663) # check
 		save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model3b_niter20000_burn2000_chains3_4dec2023.png')	
 
 
+	###########################################################
+	## effects plots attempts ##
+	###########################################################
+	## For local macbook
+		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		pacman::p_load(tidybayes)
+
+		## make dummy data frames 
+			sg.dum <- seq(min(pointdata$sgPCA1), max(pointdata$sgPCA1), (max(pointdata$sgPCA1)-min(pointdata$sgPCA1))/30)
+			cmg.dum <- seq(min(pointdata$standard.distcmg), max(pointdata$standard.distcmg), (max(pointdata$standard.distcmg)-min(pointdata$standard.distcmg))/30)
+			shore.dum <- seq(min(pointdata$standard.dist2shore), max(pointdata$standard.dist2shore), (max(pointdata$standard.dist2shore)-min(pointdata$standard.dist2shore))/30)
+			depth.dum <- seq(min(pointdata$standard.depth), max(pointdata$standard.depth), (max(pointdata$standard.depth)-min(pointdata$standard.depth))/30)
+			jetty.dum <- seq(min(pointdata$standard.dist2jetty), max(pointdata$standard.dist2jetty), (max(pointdata$standard.dist2jetty)-min(pointdata$standard.dist2jetty))/30)
+			fish.dum <- seq(min(pointdata$standard.fish), max(pointdata$standard.fish), (max(pointdata$standard.fish)-min(pointdata$standard.fish))/30)
+			press.dum <- seq(min(pointdata$standard.pres), max(pointdata$standard.pres), (max(pointdata$standard.pres)-min(pointdata$standard.pres))/30)
+
+			path2.dum <- as.data.frame(cbind(sg.dum,cmg.dum,shore.dum,fish.dum))
+			path3.dum <- as.data.frame(cbind(shore.dum,depth.dum,jetty.dum,press.dum))
+
+
+		## path[2] <-  j[4] * c[3] * a[1] # fish dredge informed path: fish sg distcmg dist2shore
+		## path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty
+			model3b$getVarNames() # prints variable names
+			model3b$getNodeNames() # prints nodes 
+			model3b$expandNodeNames('a') # prints all nodes of the variable 'a'
+			# you can swap model3b and Cm3b in these node/var calls
+
+	
 
 
 
+	###########################################################
+	## Residuals of paths using tidybayes ##
+	###########################################################
+	## For local macbook
+		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+
+		## For R Server
+		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
+		pacman::p_load(MCMCvis)
+		
+		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		##
+
+
+	## add_residual_draws
+		pointdata %>%
+			add_residual_draws(samplesList3b)%>%
+			ggplot(aes(x=.row,y = .residual))+
+			stat_pointinterval()
 
 
