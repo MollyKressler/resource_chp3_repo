@@ -195,13 +195,21 @@ stopifnot(nrow(hexdata)==2663) # check
 		value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
 
 		### predictions based on paths 2 & 3
-
+			## for every level of predictor, calculate the path estimate. dummy data with 30 'levels'
 		for(v in 1:30){
 		p2.mu[v] <- j[4]*shore.p2.dum[v]*cmg.dum[v] * c[3]*sg.dum[v] * a[1]*fish.dum[v]
 			} # problem(?) here is that the values of 'v' for different things dont relate. so is this the nesting thing? where I need to have it run through all 30 of shore.p2.dum, holding c3 and a1 to means; then repeat for c3 and a1? Do do I actually need three dataframes for path 2, one for each predictor/coeff where it runs from min to max and the others hold constant? but then how to bring them together. 22/2/2024
 
 		for(z in 1:30){
 		p3.mu[z] <- e[1]*shore.p3.dum[z] * e[2]*standard.pointdepth[z]* e[3]*standard.pointdist2jetty[z] * e[4]*standard.pointdist2jetty[z]*standard.pointdepth[z]* a[7]*standard.pointpress[z]
+			}
+
+		# or, for for all 30 values of var1, calculate the path2.mu given var2 & var3 hold constant. somehow think this is less right
+			
+		for(v in 1:30){
+			for(w in 2:3){
+				p2.mu[v,w] <- j[4]*shore.p2.dum[v]*cmg.dum[v] * c[3]*sg.dum[v] * a[1]*fish.dum[v] #not quite..
+			}
 			}
 
 	}) # end of model code 
@@ -280,6 +288,8 @@ stopifnot(nrow(hexdata)==2663) # check
 		
 		saveRDS(samples3b,'resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_22feb2024.RDS')
 		
+			names(samples3b)
+
 		mcmc_summary_Cmodel3b<-MCMCsummary(samples3b,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
@@ -319,6 +329,21 @@ stopifnot(nrow(hexdata)==2663) # check
 		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 			summary(samplesList3b)
 
+			head(samplesList3b$chain1)
+			summary(samplesList3b)
+			str(samplesList3b)
+
+			## How to make an object with all draws of e.g. j4. 
+			j4.ch<-c(samplesList3b$chain1[,22],samplesList3b$chain2[,22],samplesList3b$chain3[,22])
+			head(c3.ch)
+			hdi(j4.ch)[2]
+			pacman::p_load(HDInterval)
+
+			c3.ch<-c(samplesList3b$chain1[,11],samplesList3b$chain2[,11],samplesList3b$chain3[,11])
+
+			a1.ch<-c(samplesList3b$chain1[,1],samplesList3b$chain2[,1],samplesList3b$chain3[,1])
+
+
 		mcmc_summary_Cmodel3b_samplesListfromRDS<-MCMCsummary(samplesList3b,round=3,probs=c(0.05,0.95),pg0=TRUE)%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
@@ -354,15 +379,12 @@ stopifnot(nrow(hexdata)==2663) # check
 
 			write.csv(d3b,'resource_chp3/nimblemodel_outputs/samples3b_spreadlong_model3b_niter10000_burn2000_chains3_4dec2023.csv')
 
-			draws_3b_a <- gather_draws(samplesList3b,a[])%>%
+			j4_draws <- gather_draws(samplesList3b,j[])%>%
 				group_by(.chain)%>%
-				mutate(a.index = rep(1:7, each=8000))%>%
-				mutate(aa = paste0(.variable,a.index))%>%
 				ungroup()
-			draws_3b_a
-
-
-
+			j4<- as.data.frame(j4_draws[,5])
+			head(j4)
+			samplesList3b$chain
 
 		## pivot_wider to spread the pathID column into multiple columns, and fill with .value. 
 
@@ -456,8 +478,10 @@ stopifnot(nrow(hexdata)==2663) # check
 		## path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty
 			model3b$getVarNames() # prints variable names
 			model3b$getNodeNames() # prints nodes 
-			model3b$expandNodeNames('a') # prints all nodes of the variable 'a'
+			model3b$expandNodeNames('a')[1] # prints all nodes of the variable 'a'
 			# you can swap model3b and Cm3b in these node/var calls
+			model3b
+			names(model3b)
 
 	
 
