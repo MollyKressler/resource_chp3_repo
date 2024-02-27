@@ -2,16 +2,18 @@
 
 ## Code and approach here heavily inspired by modelling code from paper Bennett, S., Harris, M. P., Wanless, S., Green, J. A., Newell, M. A., Searle, K. R., & Daunt, F. (2022). Earlier and more frequent occupation of breeding sites during the non‐breeding season increases breeding success in a colonial seabird. Ecology and Evolution, 12(9). https://doi.org/10.1002/ece3.9213.
 
-## created 10 May 2023 by Molly M Kressler 
+## created 10 May 2023 :: Molly M Kressler 
+
+## inference from paths 2 & 3, 27 February 2024 :: Molly M Kressler & Rich B Sherley 
 
 
 ###################################
 ########## RUN AT OPEN ############
 ###################################
 
-## Load Workspace 
+## Load Workspace, local macbook
 
-pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr)
+pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
 #####################################################
@@ -194,24 +196,6 @@ stopifnot(nrow(hexdata)==2663) # check
 		value[1] <-  j[1] * j[2] * j[3] * j[4] # path 2, shore * refuge * jetty
 		value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
 
-		### predictions based on paths 2 & 3
-			## for every level of predictor, calculate the path estimate. dummy data with 30 'levels'
-		for(v in 1:30){
-		p2.mu[v] <- j[4]*shore.p2.dum[v]*cmg.dum[v] * c[3]*sg.dum[v] * a[1]*fish.dum[v]
-			} # problem(?) here is that the values of 'v' for different things dont relate. so is this the nesting thing? where I need to have it run through all 30 of shore.p2.dum, holding c3 and a1 to means; then repeat for c3 and a1? Do do I actually need three dataframes for path 2, one for each predictor/coeff where it runs from min to max and the others hold constant? but then how to bring them together. 22/2/2024
-
-		for(z in 1:30){
-		p3.mu[z] <- e[1]*shore.p3.dum[z] * e[2]*standard.pointdepth[z]* e[3]*standard.pointdist2jetty[z] * e[4]*standard.pointdist2jetty[z]*standard.pointdepth[z]* a[7]*standard.pointpress[z]
-			}
-
-		# or, for for all 30 values of var1, calculate the path2.mu given var2 & var3 hold constant. somehow think this is less right
-			
-		for(v in 1:30){
-			for(w in 2:3){
-				p2.mu[v,w] <- j[4]*shore.p2.dum[v]*cmg.dum[v] * c[3]*sg.dum[v] * a[1]*fish.dum[v] #not quite..
-			}
-			}
-
 	}) # end of model code 
 
 
@@ -238,15 +222,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		  standard.hexdistcmg = hexdata$standard.hexdistcmg,
 		  standard.hexdist2jetty = hexdata$standard.dist2jetty,
 		  standard.hexsg = hexdata$st_PCA1,
-		  standard.hexdist2jetty = hexdata$standard.dist2jetty,
-		  sg.dum = path2.dum$sg.dum,
-		  cmg.dum = path2.dum$cmg.dum,
-		  shore.p2.dum = path2.dum$shore.dum,
-		  shore.p3.dum = path3.dum$shore.dum,
-		  depth.dum = path3.dum$depth.dum,
-		  jetty.dum = path3.dum$jetty.dum,
-		  fish.dum = path2.dum$fish.dum,
-		  press.dum = path3.dum$press.dum
+		  standard.hexdist2jetty = hexdata$standard.dist2jetty
 			)
 
 		init.values3b<-list(a=rnorm(7,0,1),
@@ -286,10 +262,6 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		saveRDS(samples3b,'resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 		
-		saveRDS(samples3b,'resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_22feb2024.RDS')
-		
-			names(samples3b)
-
 		mcmc_summary_Cmodel3b<-MCMCsummary(samples3b,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
 				tibble::rownames_to_column()%>%
 				rename_with(str_to_title)%>%
@@ -319,10 +291,6 @@ stopifnot(nrow(hexdata)==2663) # check
 	###########################################################
 	## Summary Table & Caterpillar plots with MCMCvis & tidybayes to show small values ##
 	###########################################################
-
-		## Feb 2024 - need to amend the pg0
-
-		pacman::p_load(tidybayes,bayesplot,ggdist,nlist,forcats,patchwork)
 
 		# import RDS
 
@@ -408,9 +376,10 @@ stopifnot(nrow(hexdata)==2663) # check
 		ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.png',device='png',dpi=400,width=5,height=5,units='in')
 
 
-	###########################################################
+	##############################################
 	## Table: pathway description, estimates, CI and Support ##
-	###########################################################
+	##############################################
+		
 		## For local macbook
 		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 
@@ -454,57 +423,174 @@ stopifnot(nrow(hexdata)==2663) # check
 		save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model3b_niter20000_burn2000_chains3_4dec2023.png')	
 
 
-	###########################################################
-	## effects plots attempts ##
-	###########################################################
-	## For local macbook
-		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
-		pacman::p_load(tidybayes)
+##################################################
+## Inference from Paths ##
+##################################################
 
-		## make dummy data frames 
-			sg.dum <- seq(min(pointdata$sgPCA1), max(pointdata$sgPCA1), (max(pointdata$sgPCA1)-min(pointdata$sgPCA1))/30)
-			cmg.dum <- seq(min(pointdata$standard.distcmg), max(pointdata$standard.distcmg), (max(pointdata$standard.distcmg)-min(pointdata$standard.distcmg))/30)
-			shore.dum <- seq(min(pointdata$standard.dist2shore), max(pointdata$standard.dist2shore), (max(pointdata$standard.dist2shore)-min(pointdata$standard.dist2shore))/30)
-			depth.dum <- seq(min(pointdata$standard.depth), max(pointdata$standard.depth), (max(pointdata$standard.depth)-min(pointdata$standard.depth))/30)
-			jetty.dum <- seq(min(pointdata$standard.dist2jetty), max(pointdata$standard.dist2jetty), (max(pointdata$standard.dist2jetty)-min(pointdata$standard.dist2jetty))/30)
-			fish.dum <- seq(min(pointdata$standard.fish), max(pointdata$standard.fish), (max(pointdata$standard.fish)-min(pointdata$standard.fish))/30)
-			press.dum <- seq(min(pointdata$standard.pres), max(pointdata$standard.pres), (max(pointdata$standard.pres)-min(pointdata$standard.pres))/30)
-
-			path2.dum <- as.data.frame(cbind(sg.dum,cmg.dum,shore.dum,fish.dum))
-			path3.dum <- as.data.frame(cbind(shore.dum,depth.dum,jetty.dum,press.dum))
-
-
-		## path[2] <-  j[4] * c[3] * a[1] # fish dredge informed path: fish sg distcmg dist2shore
-		## path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty
-			model3b$getVarNames() # prints variable names
-			model3b$getNodeNames() # prints nodes 
-			model3b$expandNodeNames('a')[1] # prints all nodes of the variable 'a'
-			# you can swap model3b and Cm3b in these node/var calls
-			model3b
-			names(model3b)
-
+## For local macbook
+	samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 	
+	summary(samplesList3b)
+	head(samplesList3b$chain1)
+	str(samplesList3b)
+
+## Make test sample data frames - based on the hexagon df
+
+	hexsamp <- hexdata %>%
+		sample_n(5)%>%
+		as.data.frame() 
+
+## From model3b samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
+	# path 2: j4, c3, a1
+	j4.ch<-c(samplesList3b$chain1[,22],samplesList3b$chain2[,22],samplesList3b$chain3[,22])
+	c3.ch<-c(samplesList3b$chain1[,11],samplesList3b$chain2[,11],samplesList3b$chain3[,11])
+	a1.ch<-c(samplesList3b$chain1[,1],samplesList3b$chain2[,1],samplesList3b$chain3[,1])
+
+	# path 3: e1, e2, e3, e4, a7
+	e1.ch <-c(samplesList3b$chain1[,14], samplesList3b$chain2[,14],samplesList3b$chain3[,14] )
+	e2.ch <-c(samplesList3b$chain1[,15], samplesList3b$chain2[,15],samplesList3b$chain3[,15] )
+	e3.ch <-c(samplesList3b$chain1[,16], samplesList3b$chain2[,16],samplesList3b$chain3[,16] )
+	e4.ch <-c(samplesList3b$chain1[,17], samplesList3b$chain2[,17],samplesList3b$chain3[,17] )
+	a7.ch <-c(samplesList3b$chain1[1:3,7], samplesList3b$chain2[,7],samplesList3b$chain3[,7] )
+
+## Run loops for each path, to calculate path estimate given a hexagon cell
+
+	## Variable-Coefficient key
+		# j4 = dist2shore * distcmg
+		# c3 = seagrasses
+		# a1 = fish
+		# e1 = dist2shore
+		# e2 = depth
+		# e3 = dist2jetty
+		# e4 = dist2jetty*depth
+		# a7 = predator pressure
+
+	## Define size of objects/matrices
+	J = 3 * 8000 # chains x iterations
+	n.hex = nrow(hexdata)	
+
+	## set up prediction df
+
+		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
+		head(preds.path2)
+
+	## path 2 loop
+	for(i in 1:n.hex){
+		for(j in 1:J){
+			preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
+		}
+	}
+
+	## path 3 loop
+	for(i in 1:n.hex){
+		for(j in 1:J{
+			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.pointdist2shore[i]) + (e2.ch[j]*hexdata$standard.pointdepth[i]) + (e3.ch[j]*hexdata$standard.pointdist2jetty[i]) + (e4.ch[j]*hexdata$standard.pointdist2jetty[i]*hexdata$standard.pointdepth[i]) + (a7.ch[j]*hexdata$standard.pointpress) 
+		}
+	}
+
+## Calculate marginal means, and HDI (highest density intervals)
+
+	mean(as.numeric(preds.path2[1,1:5]))
+
+	cols <- c('jcode','mean', 'lower', 'upper')
+	p2pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
+	p3pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
+	colnames(p2pred) = cols
+	colnames(p3pred) = cols
+	p2pred$jcode <- hexdata$jcode
+	p3pred$jcode <- hexdata$jcode
+
+	for(i in 1:n.hex){
+		p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
+		p2pred[i,3] <- hdi(preds.path2[i,])[2]
+		p2pred[i,4] <- hdi(preds.path2[i,])[1]
+
+		p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
+		p3pred[i,3] <- hdi(preds.path3[i,])[2]
+		p3pred[i,4] <- hdi(preds.path3[i,])[1]
+	}
+
+	head(p2pred)
+	head(p3pred)
 
 
+## Save path estimates and path means + HDI dfs
 
-	###########################################################
-	## Residuals of paths using tidybayes ##
-	###########################################################
-	## For local macbook
-		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+	write.csv(preds.path2, 'path2_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
+	write.csv(preds.path3, 'path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
+	write.csv(p2preds, 'path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
+	write.csv(p3preds, 'path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
 
-		## For R Server
-		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
-		pacman::p_load(MCMCvis)
+##################################################
+## Path predictions, spatial ##
+##################################################
+
+	hexsf <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp'), crs = 'WGS84')
+	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
+
+	## join spatial geomtry by jcode to preds
+		p2.sf <- st_join(p2preds, hexsf, by='jcode')%>% 
+		p3.sf <- st_join(p3preds, hexsf, by='jcode')%>% 
+			dplyr::select(jcode, mean, lower, upper, geometry)
+
+	## path 2 plots - mean, upper, lower 
+
+	p2.mean <- ggplot()+
+		geom_sf(data = p2.sf, aes(fill = mean, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='Mean'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+	p2.lower <- ggplot()+
+		geom_sf(data = p2.sf, aes(fill = lower, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Lower'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+	p2.upper <- ggplot()+
+		geom_sf(data = p2.sf, aes(fill = upper, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Upper'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+
+	## path 3 plots - mean, upper, lower 
+
+	p3.mean <- ggplot()+
+		geom_sf(data = p3.sf, aes(fill = mean, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='Mean'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+	p3.lower <- ggplot()+
+		geom_sf(data = p3.sf, aes(fill = lower, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Lower'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+	p3.upper <- ggplot()+
+		geom_sf(data = p3.sf, aes(fill = upper, col = NA))+
+		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Upper'))+
+		theme_bw()+
+		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+
+
+	## various arrangements for pub
+		## just the means, side by side
+		means.. <- p2.mean + p3.mean + plot.layout(guides = 'collect')
+
+		## means with their HDIs, horizontal
+		p2.mean.hdis.wide <- p2.mean + p2.lower + p2.upper + plot.layout(guides = 'collect')
+		p3.mean.hdis.wide <- p3.mean + p3.lower + p3.upper + plot.layout(guides = 'collect')
 		
-		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
-		##
+		## means with their HDIs, stacked
+		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper + plot.layout(guides = 'collect')
+		p3.mean.hdis.long <- p3.mean / p3.lower / p3.upper + plot.layout(guides = 'collect')
+
+		## means with their HDIs, means = 2 cols and big, hdis = 1 col small under means
+		p2.mean.hdis.square <- p2.mean / (p2.lower + p2.upper) + plot.layout(ncol =2, nrow =2, guides = 'collect')
+		p3.mean.hdis.square <- p3.mean / (p3.lower + p3.upper) + plot.layout(ncol =2, nrow =2, guides = 'collect')
 
 
-	## add_residual_draws
-		pointdata %>%
-			add_residual_draws(samplesList3b)%>%
-			ggplot(aes(x=.row,y = .residual))+
-			stat_pointinterval()
 
 
