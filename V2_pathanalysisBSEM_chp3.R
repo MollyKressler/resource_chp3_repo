@@ -546,7 +546,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Lower'))+
 		theme_bw()+
 		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
-
+aq
 	p2.upper <- ggplot()+
 		geom_sf(data = p2.sf, aes(fill = upper, col = NA))+
 		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Upper'))+
