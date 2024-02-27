@@ -16,6 +16,10 @@
 pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
+## Load workspace, R Server 
+pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
+setwd("~/resource/data_and_RDS_NOTforupload")
+
 #####################################################
 ###### DF 1, for process model for sharkiness  ######
 ### Define Sharkiness
@@ -292,8 +296,10 @@ stopifnot(nrow(hexdata)==2663) # check
 	## Summary Table & Caterpillar plots with MCMCvis & tidybayes to show small values ##
 	###########################################################
 
-		# import RDS
-
+		# import RDS, R Server
+		samplesList3b <- readRDS('mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		
+		# import RDS, locacl macbook 
 		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 			summary(samplesList3b)
 
@@ -427,10 +433,14 @@ stopifnot(nrow(hexdata)==2663) # check
 ## Inference from Paths ##
 ##################################################
 
-## For local macbook
-	samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		## For local macbook
+		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		## For R Server
+		samplesList3b <- readRDS('mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')
+	  head(hexdata)	
 	
-	summary(samplesList3b)
+	  summary(samplesList3b)
 	head(samplesList3b$chain1)
 	str(samplesList3b)
 
@@ -475,12 +485,12 @@ stopifnot(nrow(hexdata)==2663) # check
 		head(preds.path2)
 
 	## path 2 loop
-	for(i in 1:n.hex){
-		for(j in 1:J){
-			preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
+		for(i in 1:n.hex){
+		  for(j in 1:J){
+		    preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
+		  }
 		}
-	}
-
+	
 	## path 3 loop
 	for(i in 1:n.hex){
 		for(j in 1:J{
@@ -497,8 +507,8 @@ stopifnot(nrow(hexdata)==2663) # check
 	p3pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
 	colnames(p2pred) = cols
 	colnames(p3pred) = cols
-	p2pred$jcode <- hexdata$jcode
-	p3pred$jcode <- hexdata$jcode
+	p2pred$jcode <- as.character(hexdata$jcode)
+	p3pred$jcode <- as.character(hexdata$jcode)
 
 	for(i in 1:n.hex){
 		p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
@@ -529,16 +539,18 @@ stopifnot(nrow(hexdata)==2663) # check
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
 
 	## join spatial geomtry by jcode to preds
-		p2.sf <- st_join(p2preds, hexsf, by='jcode')%>% 
-		p3.sf <- st_join(p3preds, hexsf, by='jcode')%>% 
-			dplyr::select(jcode, mean, lower, upper, geometry)
+		p2.sf <- st_as_sf(left_join(p2pred, hexsf, by='jcode'))%>%
+		  dplyr::select(jcode, mean, lower, upper, geometry)
+		p3.sf <- st_as_sf(left_join(p3pred, hexsf, by='jcode'))%>%
+		  dplyr::select(jcode, mean, lower, upper, geometry)
 
 	## path 2 plots - mean, upper, lower 
 
 	p2.mean <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = mean, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='Mean'))+
-		theme_bw()+
+		geom_sf(data = p2.sf, aes(fill = mean, col = mean), lwd=0)+
+	  scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(-1,1),guide=guide_colourbar(title='Mean'))+
+	  scale_colour_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='col',limits = c(-1,1),guide=guide_colourbar(title='Mean'))+
+	  theme_bw()+
 		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
 
 	p2.lower <- ggplot()+
