@@ -1,4 +1,4 @@
-## Path analysis for Risk & Resource BSEM (chapter 3)
+ ## Path analysis for Risk & Resource BSEM (chapter 3)
 
 ## Code and approach here heavily inspired by modelling code from paper Bennett, S., Harris, M. P., Wanless, S., Green, J. A., Newell, M. A., Searle, K. R., & Daunt, F. (2022). Earlier and more frequent occupation of breeding sites during the non‐breeding season increases breeding success in a colonial seabird. Ecology and Evolution, 12(9). https://doi.org/10.1002/ece3.9213.
 
@@ -484,11 +484,15 @@ stopifnot(nrow(hexdata)==2663) # check
 		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
 		head(preds.path2)
 
+	## write progress bar function
+		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
+
 	## path 2 loop
 		for(i in 1:n.hex){
 		  for(j in 1:J){
 		    preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
-		  }
+		  } 
+		  	setTxtProgressBar(pb, i)
 		}
 	
 	## path 3 loop
@@ -500,7 +504,7 @@ stopifnot(nrow(hexdata)==2663) # check
 
 ## Calculate marginal means, and HDI (highest density intervals)
 
-	mean(as.numeric(preds.path2[1,1:5]))
+	mean(as.numeric(preds.path2[1,1:24000]))
 
 	cols <- c('jcode','mean', 'lower', 'upper')
 	p2pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
@@ -509,16 +513,19 @@ stopifnot(nrow(hexdata)==2663) # check
 	colnames(p3pred) = cols
 	p2pred$jcode <- as.character(hexdata$jcode)
 	p3pred$jcode <- as.character(hexdata$jcode)
+	head(p2pred)
 
+	pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
+	
 	for(i in 1:n.hex){
 		p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
 		p2pred[i,3] <- hdi(preds.path2[i,])[2]
 		p2pred[i,4] <- hdi(preds.path2[i,])[1]
-
-		p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
-		p3pred[i,3] <- hdi(preds.path3[i,])[2]
-		p3pred[i,4] <- hdi(preds.path3[i,])[1]
-	}
+		setTxtProgressBar(pb, i)
+		#p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
+		#p3pred[i,3] <- hdi(preds.path3[i,])[2]
+		#p3pred[i,4] <- hdi(preds.path3[i,])[1]
+	};beep(3)
 
 	head(p2pred)
 	head(p3pred)
