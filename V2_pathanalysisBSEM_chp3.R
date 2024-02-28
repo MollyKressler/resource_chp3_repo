@@ -13,7 +13,7 @@
 
 ## Load Workspace, local macbook
 
-pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
+pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval, patchwork, cowplot)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
 ## Load workspace, R Server 
@@ -484,6 +484,10 @@ stopifnot(nrow(hexdata)==2663) # check
 		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
 		head(preds.path2)
 
+		preds.path3 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
+		head(preds.path3)
+
+
 	## write progress bar function
 		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
 
@@ -497,10 +501,11 @@ stopifnot(nrow(hexdata)==2663) # check
 	
 	## path 3 loop
 	for(i in 1:n.hex){
-		for(j in 1:J{
-			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.pointdist2shore[i]) + (e2.ch[j]*hexdata$standard.pointdepth[i]) + (e3.ch[j]*hexdata$standard.pointdist2jetty[i]) + (e4.ch[j]*hexdata$standard.pointdist2jetty[i]*hexdata$standard.pointdepth[i]) + (a7.ch[j]*hexdata$standard.pointpress) 
+		setTxtProgressBar(pb, i)
+		for(j in 1:J){
+			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.dist2jetty[i]*hexdata$standard.depth[i]) + (a7.ch[j]*hexdata$standard.hexpress[i]) 
 		}
-	}
+	};beep(3)
 
 ## Calculate marginal means, and HDI (highest density intervals)
 
@@ -528,21 +533,20 @@ stopifnot(nrow(hexdata)==2663) # check
 	};beep(3)
 
 	head(p2pred)
+	nrow(p2pred)
 	head(p3pred)
 
 
 ## Save path estimates and path means + HDI dfs
 
-	write.csv(preds.path2, 'path2_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
-	write.csv(preds.path3, 'path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
-	write.csv(p2preds, 'path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
-	write.csv(p3preds, 'path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
+	write.csv(p2pred, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
+	write.csv(p3pred, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')
 
 ##################################################
 ## Path predictions, spatial ##
 ##################################################
 
-	hexsf <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp'), crs = 'WGS84')
+	hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'), crs = 'WGS84')
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
 
 	## join spatial geomtry by jcode to preds
@@ -553,24 +557,25 @@ stopifnot(nrow(hexdata)==2663) # check
 
 	## path 2 plots - mean, upper, lower 
 
+
 	p2.mean <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = mean, col = mean), lwd=0)+
-	  scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(-1,1),guide=guide_colourbar(title='Mean'))+
-	  scale_colour_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='col',limits = c(-1,1),guide=guide_colourbar(title='Mean'))+
-	  theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+		geom_sf(data = p2.sf, aes(fill = round(mean,3)), lwd=0)+
+		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
+	  	theme_bw()+
+	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	
 
 	p2.lower <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = lower, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Lower'))+
+		geom_sf(data = p2.sf, aes(fill = round(lower, 3)), lwd=0)+
+		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
 		theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
-aq
+	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+
 	p2.upper <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = upper, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Upper'))+
+		geom_sf(data = p2.sf, aes(fill = round(upper, 3)), lwd=0)+
+		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
 		theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
 
 
 	## path 3 plots - mean, upper, lower 
@@ -599,17 +604,25 @@ aq
 		means.. <- p2.mean + p3.mean + plot.layout(guides = 'collect')
 
 		## means with their HDIs, horizontal
-		p2.mean.hdis.wide <- p2.mean + p2.lower + p2.upper + plot.layout(guides = 'collect')
-		p3.mean.hdis.wide <- p3.mean + p3.lower + p3.upper + plot.layout(guides = 'collect')
+		p2.mean.hdis.wide <- p2.mean + p2.lower + p2.upper 
+		p3.mean.hdis.wide <- p3.mean + p3.lower + p3.upper + plot_layout(guides = 'collect')
 		
 		## means with their HDIs, stacked
-		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper + plot.layout(guides = 'collect')
-		p3.mean.hdis.long <- p3.mean / p3.lower / p3.upper + plot.layout(guides = 'collect')
+		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper 
+		p3.mean.hdis.long <- p3.mean / p3.lower / p3.upper + plot_layout(guides = 'collect')
 
 		## means with their HDIs, means = 2 cols and big, hdis = 1 col small under means
-		p2.mean.hdis.square <- p2.mean / (p2.lower + p2.upper) + plot.layout(ncol =2, nrow =2, guides = 'collect')
-		p3.mean.hdis.square <- p3.mean / (p3.lower + p3.upper) + plot.layout(ncol =2, nrow =2, guides = 'collect')
+		p2.mean.hdis.square <- p2.mean / (p2.lower | p2.upper) + plot_layout(widths = c(1), heights = c(2,1))
+
+		p3.mean.hdis.square <- p3.mean / (p3.lower + p3.upper) + plot_layout(ncol =2, nrow =2, guides = 'collect')
 
 
-
-
+	## save plots 
+	  ##### path 2 plots
+		ggsave(p2.mean, file = 'resource_chp3/path_inference/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.lower, file = 'resource_chp3/path_inference/path2_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.upper, file = 'resource_chp3/path_inference/path2_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.mean.hdis.wide, file = 'resource_chp3/path_inference/path2_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
+		ggsave(p2.mean.hdis.long, file = 'resource_chp3/path_inference/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
+		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+ 
