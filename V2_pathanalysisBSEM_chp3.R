@@ -545,10 +545,16 @@ stopifnot(nrow(hexdata)==2663) # check
 ##################################################
 ## Path predictions, spatial ##
 ##################################################
-
+	pacman::p_load(sf, ggplot2, patchwork,tidyverse)
+  
+	## local R, macbook
 	hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'), crs = 'WGS84')
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
-
+	## R server 
+	hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'), crs = 'WGS84')
+	p2pred <- read.csv('path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')%>%
+	  mutate(jcode = as.character(jcode))
+	
 	## join spatial geomtry by jcode to preds
 		p2.sf <- st_as_sf(left_join(p2pred, hexsf, by='jcode'))%>%
 		  dplyr::select(jcode, mean, lower, upper, geometry)
@@ -557,46 +563,64 @@ stopifnot(nrow(hexdata)==2663) # check
 
 	## path 2 plots - mean, upper, lower 
 
-
+  colours = c('#01000a', '#ffffff', '#4cd1f6') 
 	p2.mean <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = round(mean,3)), lwd=0)+
-		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
-	  	theme_bw()+
+		geom_sf(data = p2.sf, aes(fill = mean), lwd=0)+
+	  theme_bw()+
+		scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.4,.6),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
-	
+	 p2.mean
 
 	p2.lower <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = round(lower, 3)), lwd=0)+
-		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
-		theme_bw()+
+		geom_sf(data = p2.sf, aes(fill = lower), lwd=0)+
+	  theme_bw()+
+	  scale_fill_steps(name = 'Lower', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.4,.6),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	  p2.lower
 
 	p2.upper <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = round(upper, 3)), lwd=0)+
-		scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
-		theme_bw()+
+		geom_sf(data = p2.sf, aes(fill = upper), lwd=0)+
+	  scale_fill_steps(name = 'Upper', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.4,.6),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+	  theme_bw()+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+  p2.upper
+  
+    ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
+      p2.upper.diff <- ggplot()+
+        geom_sf(data = p2.sf, aes(fill = upper-mean), lwd=0)+
+        scale_fill_steps2(name = 'Upper HDI', low = colours[1], mid = colours[2], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-0.10, 0,0.10),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+        theme_bw()+
+        theme(axis.text.x = element_text(angle=45, hjust = 1))
+      p2.upper.diff
+      
+      p2.lower.diff <- ggplot()+
+        geom_sf(data = p2.sf, aes(fill = mean-lower), lwd=0)+
+        scale_fill_steps2(name = 'Lower HDI', low = colours[1], mid = colours[2], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-0.10, 0,0.10),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+        theme_bw()+
+        theme(axis.text.x = element_text(angle=45, hjust = 1))
+      p2.lower.diff
+      
 
-
+      
 	## path 3 plots - mean, upper, lower 
 
 	p3.mean <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = mean, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='Mean'))+
-		theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+		geom_sf(data = p3.sf, aes(fill = round(mean, 3), col = NA))+
+	  scale_fill_steps(name = 'Mean',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6,.8),show.limits = TRUE)+
+	  theme_bw()+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1))
 
 	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = lower, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Lower'))+
-		theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+		geom_sf(data = p3.sf, aes(fill = round(lower, 3), col = NA))+
+	  scale_fill_steps(name = 'Lower',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
+	  theme_bw()+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1))
 
 	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = upper, col = NA))+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(,),guide=guide_colourbar(title='HDI Upper'))+
-		theme_bw()+
-		geom_sf(data = land, aes(alpha = 0, col = 'grey30'))
+		geom_sf(data = p3.sf, aes(fill = round(upper, 3), col = NA))+
+	  scale_fill_steps(name = 'Upper',low = '#ffffff', high = '#2e5a61', space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,.2,.4,.6),show.limits = TRUE)+
+	  theme_bw()+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1))
 
 
 	## various arrangements for pub
@@ -616,8 +640,9 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		p3.mean.hdis.square <- p3.mean / (p3.lower + p3.upper) + plot_layout(ncol =2, nrow =2, guides = 'collect')
 
+		
 
-	## save plots 
+	  ## save plots 
 	  ##### path 2 plots
 		ggsave(p2.mean, file = 'resource_chp3/path_inference/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p2.lower, file = 'resource_chp3/path_inference/path2_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
@@ -626,3 +651,17 @@ stopifnot(nrow(hexdata)==2663) # check
 		ggsave(p2.mean.hdis.long, file = 'resource_chp3/path_inference/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
 		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
  
+		
+		
+	## save on Server
+		ggsave(p2.mean, file = 'figures_and_tables/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.lower, file = 'figures_and_tables/path2_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.upper, file = 'figures_and_tables/path2_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.mean.hdis.wide, file = 'figures_and_tables/path2_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
+		ggsave(p2.mean.hdis.long, file = 'figures_and_tables/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
+		ggsave(p2.mean.hdis.square, file = 'figures_and_tables/path2_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p2.lower.diff, file = 'figures_and_tables/path2_lowerHDI_differencefromMean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.upper.diff, file = 'figures_and_tables/path2_upperHDI_differencefromMean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		
+		
+		
