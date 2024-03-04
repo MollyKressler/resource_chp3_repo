@@ -432,10 +432,53 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 
 
 
+	##############################################
+	## Table: pathway description, estimates, CI and Support ##
+	##############################################
+		
+		## For local macbook
+		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
 
+		## For R Server
+		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
+		pacman::p_load(MCMCvis)
+		
+		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		##
+		
 
+		samplesList3b %>% filter(Rowname=='path')
+		
+		
 
+		pathwayresults_table <- MCMCsummary(samplesList3b,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
+				tibble::rownames_to_column()%>%
+				rename_with(str_to_title)%>%
+			rename('pg0'='P>0')%>%
+		  	mutate(pg00 = case_when(Mean > 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
+			arrange(-pg00)%>%
+			rename(Pathway = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+			mutate(Estimate = round(Estimate, 3))%>%
+			mutate(lower = case_when(Path != 1 ~ round(lower,3), Path == 1 ~ round(lower,5)),upper = case_when(Path != 1 ~ round(upper,3), Path == 1 ~ round(upper,5)))%>%
+			mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
+			mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
+			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+			dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
+			flextable()%>%
+				compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
+				compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Predator Pressure'))%>%
+				compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
+				compose(i=4,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty'))%>%
+				theme_zebra()%>%
+				align(j=3:4, align = 'center', part = 'all')%>%
+				font(fontname = 'Arial', part = 'all')%>%
+				color(color='black',part='all')%>%
+				fontsize(size = 10, part = 'all')%>%
+				autofit()
+		pathwayresults_table
 
+		save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model3b_niter20000_burn2000_chains3_4dec2023.png')	
 
 
 
