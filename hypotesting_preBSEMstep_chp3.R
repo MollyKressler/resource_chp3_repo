@@ -63,7 +63,8 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 	sg.modelsranked.tabled <- sg.dredge %>%
 	  as_tibble %>%
-	  mutate(weight=round(weight,5),
+	  round(3)%>%
+	  mutate(weight=round(weight,3),
 	         model = 1:n()) %>%
 	  mutate(Null = ifelse(df == 2, 1, NA))%>%
 	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
@@ -203,7 +204,6 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 
 
-
 	summary(get.models(shark.dredge,1)[[1]]) #"best" model
 	best.shark <- get.models(shark.dredge,1)[[1]]
 
@@ -244,6 +244,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 	fish.modelsranked.tabled <- fish.dredge%>%
 		as_tibble %>%
+		round(3)%>%
 	  mutate(weight=round(weight,9), model = 1:n()) %>%
 	  mutate(Null = ifelse(df == 2, 1, NA))%>%
 	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
@@ -276,6 +277,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 	press.glm.modelsranked.tabled <- pred.dredged%>%
 		as_tibble %>%
+		round(3) %>%
 	  mutate(weight=round(weight,9), model = 1:n()) %>%
 	  mutate(Null = ifelse(df == 2, 1, NA))%>%
 	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
@@ -342,6 +344,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)	
 	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves','standard.depth*standard.dist2jetty'='Depth * Dist. to Jetty'))%>%
+		add_glance_table(label = list(sigma ~ "U03C3"), include = c(AIC))%>%
 		bold_p(t=0.05)
 
 	# side by side
@@ -359,6 +362,8 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 		as_flex_table()%>%	
 		autofit()
 
+	## AIC of three. mdoels relative to each other
+	AIC(sgm, fm, pm)
 
 	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_dec2023.png' ,webshot='webshot')
 
