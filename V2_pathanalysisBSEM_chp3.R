@@ -440,7 +440,7 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		## For local macbook
 		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
-			hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')
+		hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')
 
 		## For R Server
 		samplesList3b <- readRDS('mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
@@ -514,6 +514,9 @@ stopifnot(nrow(hexdata)==2663) # check
 		}
 	};beep(3)
 
+	## save calculations
+		saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.RData')
+
 ## Calculate marginal means, and HDI (highest density intervals)
 
 	## deprecated and inaccurate way to calculate HDIs - HDInterval::hdi needs values in columns. 
@@ -546,8 +549,8 @@ stopifnot(nrow(hexdata)==2663) # check
 		head(p3pred)
 
 	## Updated approach: 5 March 2024
-	p2 <- read.csv('resource_chp3/path_inference/path2_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
-	p3 <- read.csv('resource_chp3/path_inference/path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.csv')
+	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model3bdec2023_calcFeb2024.RData')
+	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.RData')
 	hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%mutate(jcode=as.character(jcode))
 
 	## re-format data
@@ -566,7 +569,6 @@ stopifnot(nrow(hexdata)==2663) # check
 		  Upp = rep(0,dim(dat.p2)[1]))
 
 	dat.p3 <- as.matrix(p3)
-	dat.p3<-dat.p3[,-1]
 	out.p3 <- data.frame(
 		  Index = rep(0,dim(dat.p3)[1]),
 		  Mean = rep(0,dim(dat.p3)[1]),
@@ -595,6 +597,10 @@ stopifnot(nrow(hexdata)==2663) # check
   	out.p2 <- cbind(hexdata%>%dplyr::select('jcode'), out.p2)%>%
   		dplyr::select(-Index)
   	head(out.p2)
+  	
+  	out.p3 <- cbind(hexdata%>%dplyr::select('jcode'), out.p3)%>%
+  		dplyr::select(-Index)
+  	head(out.p3)
 
 ## Save path estimates and path means + HDI dfs
 
@@ -608,18 +614,18 @@ stopifnot(nrow(hexdata)==2663) # check
 	## local R, macbook 
 	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- read.csv('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
-		dplyr::select(-X)%>%
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
 		mutate(jcode = as.character(jcode))
 
 ## histograms of HDIs
-	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.1) + theme_bw()  + ggtitle('Path 2 Upper HDI')
-	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.1) + theme_bw() + ggtitle('Path 2 Lower HDI')
-	p3up <- ggplot(data=p3pred, aes(x=upper))+geom_histogram(binwidth=.1) + theme_bw() + ggtitle('Path 3 Upper HDI')
-	p3low <- ggplot(data=p3pred, aes(x=lower))+geom_histogram(binwidth=.1) + theme_bw() + ggtitle('Path 3 Lower HDI')
+	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.1) + theme_bw()  + labs(subtitle = 'A')  + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'B') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+	p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'C') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'D') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
-	(p2up | p2low) / (p3up | p3low)
+	hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
 
+	ggsave(hist.HDIs.path2.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path2and3.png', dpi = 850, units = 'in', height = 3, width = 8.5)
 
 
 ##################################################
@@ -643,36 +649,56 @@ stopifnot(nrow(hexdata)==2663) # check
 
 
 	## cut out the splattering of stuff to the south for plotting
-		  cropbox <- st_as_sf(st_bbox(c(xmin = 79.24, xmax=79.31, ymin = 25.68, ymax = 25.78), crs='WGS84'))
-		  hexsf2 <- st_crop(hexsf, c(xmin = -79.24, xmax=-79.31, ymin = 25.68, ymax = 25.78))
+		 cropbox <- st_as_sf(st_bbox(c(xmin = 79.24, xmax=79.31, ymin = 25.68, ymax = 25.78), crs='WGS84'))
+		 hexsf2 <- st_crop(hexsf, c(xmin = -79.23, xmax=-79.31, ymin = 25.68, ymax = 25.78))
+		 southerninset <- st_crop(hexsf, c(xmin = -79.30, xmax=-79.31, ymin = 25.66, ymax = 25.68))
 	
 	## join spatial geomtry by jcode to preds
-		p2.sf <- st_as_sf(left_join(p2pred, hexsf2, by='jcode'))%>%
+		p2.sf <- st_as_sf(left_join(hexsf, p2pred, by='jcode'))%>%
 		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-		p3.sf <- st_as_sf(left_join(p3pred, hexsf2, by='jcode'))%>%
-		  dplyr::select(jcode, mean, lower, upper, geometry)
+		p2.sf.cropped <- st_as_sf(left_join(hexsf2, p2pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
+		
+		p2.southerninset <- st_as_sf(left_join(southerninset, p2pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
+		
+		p3.sf <- st_as_sf(left_join(hexsf, p3pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
+
+		p3.sf.cropped <- st_as_sf(left_join(hexsf2, p3pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
+
+		p3.southerninset <- st_as_sf(left_join(southerninset,p3pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
 
 	## path 2 plots - mean, upper, lower 
 
   colours = c('#ffffff', '#666282','#3a6c74','#143B43')
   colours.diff = c('#d2c9cf','#a097a6','#858093','#696b81','#4c566e','#2d435a','#063146') 
+	
+	scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.6),show.limits = TRUE, labels=scales::label_number(accuracy=0.1))+
+
+
 	p2.mean <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = Mean), lwd=0)+
-	  theme_bw()+
-		scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.6),show.limits = TRUE, labels=scales::label_number(accuracy=0.1))+
+		theme_bw()+
+		geom_sf(data = p2.sf, aes(fill = Mean), lwd=0, col = 'white')+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Mean')+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
 	 p2.mean
 
 	p2.lower <- ggplot()+
 		geom_sf(data = p2.sf, aes(fill = Low), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-	  scale_fill_steps(name = 'Lower', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.4,.6),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Lower HDI')+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
-	  p2.lower
+	p2.lower
 
 	p2.upper <- ggplot()+
 		geom_sf(data = p2.sf, aes(fill = Upp), lwd=0)+
-	  scale_fill_steps(name = 'Upper', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.4,.6),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Upper HDI')+
 	  theme_bw()+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
   p2.upper
@@ -680,14 +706,16 @@ stopifnot(nrow(hexdata)==2663) # check
     ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
       p2.upper.diff <- ggplot()+
         geom_sf(data = p2.sf, aes(fill = abs(Upp-Mean)), lwd=0)+
-        scale_fill_steps(name = 'Upper HDI\n\ Absolute\n\ difference', low = colours.diff[1],  high = colours.diff[7],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0.0001, 0.001, 0.01, 0.1, 0.5),show.limits = TRUE, labels=scales::label_number(accuracy=0.001))+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,0.75), oob = scales::squish, name = 'Upper HDI\n\ Absolute\n\ difference')+
         theme_bw()+
         theme(axis.text.x = element_text(angle=45, hjust = 1))
       p2.upper.diff
       
       p2.lower.diff <- ggplot()+
         geom_sf(data = p2.sf, aes(fill = abs(Mean-Low)), lwd=0)+
-        scale_fill_steps(name = 'Lower HDI\n\ Absolute\n\ difference', low = colours.diff[1],  high = colours.diff[7],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0.0001, 0.001, 0.01, 0.1, 0.5),show.limits = TRUE, labels=scales::label_number(accuracy=0.001))+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,0.75), oob = scales::squish, name = 'Lower HDI\n\ Absolute\n\ difference')+
         theme_bw()+
         theme(axis.text.x = element_text(angle=45, hjust = 1))
       p2.lower.diff
@@ -697,66 +725,78 @@ stopifnot(nrow(hexdata)==2663) # check
 	## path 3 plots - mean, upper, lower 
 
 	p3.mean <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = mean), lwd=0)+
-		geom_sf(data = land, col = 'grey30')+
+		geom_sf(data = p3.sf, aes(fill = Mean), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-		scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-1, 0,1,2,4),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Mean')+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
 	  p3.mean
 
 	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = round(lower, 3)), lwd=0)+
-		geom_sf(data = land, col = 'grey30')+
+		geom_sf(data = p3.sf, aes(fill = Low), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-		scale_fill_steps(name = 'Lower', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-1, 0,1,2,4),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Lower')+
 	  theme(axis.text.x = element_text(angle=45, hjust = 1))
 	 p3.lower
 
 	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = round(upper, 3)), lwd=0)+
-		geom_sf(data = land, col = 'grey30')+
+		geom_sf(data = p3.sf, aes(fill = Upp), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-		scale_fill_steps(name = 'Upper', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-1, 0,1,2,4),show.limits = FALSE, labels=scales::label_number(accuracy=0.1))+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Upper')+
 	  theme(axis.text.x = element_text(angle=45, hjust = 1))
-	  p3.upper
+    p3.upper
 
 	  ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
       p3.upper.diff <- ggplot()+
-        geom_sf(data = p3.sf, aes(fill = abs(upper-mean)), lwd=0)+
- 		geom_sf(data = land, col = 'grey30')+
-       scale_fill_steps2(name = 'Upper HDI\n\Absolute\n\ difference', low = colours[1], mid = colours[3], high = colours[4],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,0.01,0.1, 0.2),show.limits = FALSE, labels=scales::label_number(accuracy=0.01))+
+        geom_sf(data = p3.sf, aes(fill = abs(Upp-Mean)), lwd=0)+
+ 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
         theme_bw()+
         theme(axis.text.x = element_text(angle=45, hjust = 1))
       p3.upper.diff
       
       p3.lower.diff <- ggplot()+
-        geom_sf(data = p3.sf, aes(fill = abs(mean-lower)), lwd=0)+
- 		geom_sf(data = land, col = 'grey30')+
-       scale_fill_steps2(name = 'Lower HDI', low = colours[1], mid = colours[3], high = colours[4],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(0,0.01,0.1, 0.2),show.limits = FALSE, labels=scales::label_number(accuracy=0.01))+
+        geom_sf(data = p3.sf, aes(fill = abs(Mean-Low)), lwd=0)+
+ 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
         theme_bw()+
         theme(axis.text.x = element_text(angle=45, hjust = 1))
       p3.lower.diff
 
+
+
+
+
 	## various arrangements for pub
 		## just the means, side by side
-		means.. <- p2.mean + p3.mean + plot_layout(guides = 'collect')
+		means.. <- p2.mean + p3.mean + plot_layout(guides = 'collect', axes = 'collect')
+			pacman::p_load(wrap_plots)
+			means. <- list(p2.mean, p3.mean)
+		means.. <- wrap_plots(means., axes = 'collect_y', guides = 'collect')
 
 		## means with their HDIs, horizontal
 		p2.mean.hdis.wide <- p2.mean + p2.lower + p2.upper 
 		p3.mean.hdis.wide <- p3.mean + p3.lower + p3.upper 
+
+		p2.hdis.wide <- p2.lower + p2.upper 
+		p3.hdis.wide <- p3.lower + p3.upper 
 		
 		## means with their HDIs, stacked
 		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper 
 		p3.mean.hdis.long <- p3.mean / p3.lower / p3.upper 
 
 		## means with their HDIs, means = 2 cols and big, hdis = 1 col small under means
-		p2.mean.hdis.square <- p2.mean / (p2.lower.diff | p2.upper.diff) + plot_layout(widths = c(1), heights = c(2,1))
+		p2.mean.diffshdis.square <- p2.mean / (p2.lower.diff | p2.upper.diff) + plot_layout(widths = c(1), heights = c(2,1))
+		p2.mean.hdis.square <- p2.mean / (p2.lower | p2.upper) + plot_layout(widths = c(1), heights = c(2,1))
 
 		p3.mean.hdis.square <- p3.mean / (p3.lower | p3.upper) + plot_layout(widths = c(1), heights = c(2,1))
+		p3.mean.diffshdis.square <- p3.mean / (p3.lower.diff | p3.upper.diff) + plot_layout(widths = c(1), heights = c(2,1))
 
 		## mean with difference
 		 diffmean.p2 <- p2.lower.diff | p2.upper.diff
-		 diffmean.p3 <- p3.mean | p3.upper.diff
+		 diffmean.p3 <- p3.lower.diff | p3.upper.diff
 
 		
 
@@ -767,11 +807,14 @@ stopifnot(nrow(hexdata)==2663) # check
 		ggsave(p2.upper, file = 'resource_chp3/path_inference/path2_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p2.mean.hdis.wide, file = 'resource_chp3/path_inference/path2_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
 		ggsave(p2.mean.hdis.long, file = 'resource_chp3/path_inference/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
-		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_and_diffHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p2.mean.diffshdis.square, file = 'resource_chp3/path_inference/path2_mean_and_diffHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_and_UppandLowHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
 		ggsave(diffmean.p2, file = 'resource_chp3/path_inference/path2_mean_and_UpperLowerHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 8)
 		ggsave(p2.lower.diff, file = 'resource_chp3/path_inference/path2_LowerHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p2.upper.diff, file = 'resource_chp3/path_inference/path2_UpperHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.hdis.wide, file = 'resource_chp3/path_inference/path2_HDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8)
 
+	  ####### path 3 plots 
  
  		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
@@ -779,9 +822,14 @@ stopifnot(nrow(hexdata)==2663) # check
 		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
 		ggsave(p3.mean.hdis.long, file = 'resource_chp3/path_inference/path3_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
 		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_mean_andHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
- 
+		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
+ 		ggsave(p3.hdis.wide, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8)
+
 		
+ 		ggsave(means.., file = 'resource_chp3/path_inference/path2_and_path3_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 7)
+
+
 		
 	## save on Server
 		ggsave(p2.mean, file = 'figures_and_tables/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
@@ -795,9 +843,6 @@ stopifnot(nrow(hexdata)==2663) # check
 		
 		
 		
-
-
-Using path analysis embedded in a Bayesian structural equation model, we explored the hierarchical drivers of space use in juvenile lemon sharks, in The Bahamas. From acoustic telemetry of juveniles and large sharks, we defined a seascape of fear , and from underwater surveys of prey teleost and invertebrate abundance and diversity we calculated a prey availability metric. By integrating these ecological drivers with habitat information in our hierarchical structural models, we were able to explore different hypotheses for the observed distributions of juvenile sharks. We found very strong support for the perferential association of juvenile sharks with prey resources, and strong evidence for the avoidance of predators. 
 
 
 
