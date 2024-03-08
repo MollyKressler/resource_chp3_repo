@@ -618,15 +618,15 @@ stopifnot(nrow(hexdata)==2663) # check
 		mutate(jcode = as.character(jcode))
 
 ## histograms of HDIs
-	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.1) + theme_bw()  + labs(subtitle = 'A')  + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'B') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-	p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'C') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.1) + theme_bw() + labs(subtitle = 'D') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw()  + labs(subtitle = 'A')  + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'B') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'C') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'D') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
 
 	hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
 
 	ggsave(hist.HDIs.path2.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path2and3.png', dpi = 850, units = 'in', height = 3, width = 8.5)
-
+ 
 
 ##################################################
 ## Path predictions, spatial ##
