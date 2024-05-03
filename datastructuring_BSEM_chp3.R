@@ -47,6 +47,12 @@
 pacman::p_load(tidyverse,sf,ggplot2,cowplot,patchwork,flextable,sf,ggsn,dismo,gbm)
 setwd('/Users/mollykressler/Documents/data_phd')
 
+## Load workspace, R Server 
+pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
+setwd("~/resource/data_and_RDS_NOTforupload")
+
+
+
 ## Load data
 
 	hab.new <-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')
@@ -350,9 +356,11 @@ setwd('/Users/mollykressler/Documents/data_phd')
 		workingpointdata <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp'),crs='WGS84')%>%
 				rename(buffIDnum=bffIDnm,standard.shark=stndrd_s,standard.fish=stndrd_f,standard.dist2shore=stndr_2,standard.distcmg=stndrd_d,standard.lds=stndrd_l,standard.mds=stndrd_m,standard.hds=stndrd_h)
 		## calculate the relProbPD risk per receiver
-			p <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/predators_detectedwithinstudyarea_MKthesis2019to2020_aug2023.shp'))%>%
-				dplyr::select(-statn_x,-statn_y)
-			
+		p <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/predators_detectedwithinstudyarea_MKthesis2019to2020_aug2023.shp'))%>%
+		  dplyr::select(-statn_x,-statn_y)
+		p <- st_as_sf(st_read('predators_detectedwithinstudyarea_MKthesis2019to2020_aug2023.shp'))%>%
+		  dplyr::select(-statn_x,-statn_y)
+		
 			wherePredsdontgo <- expand.grid(rID=c(10,22,24),Species=c('Carcharhinus limbatus','Negaprion brevirostris'),n=0)%>%
 				left_join(.,d2)%>%
 				st_as_sf()%>%
@@ -396,8 +404,11 @@ setwd('/Users/mollykressler/Documents/data_phd')
 			
 			ggsave(relativePropPDdettsreceivers,file='lemonspredators_20192020blacktipsANDbulls/descriptive_stats_and_figures/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.png',device='png',units='in',dpi=950,height=7,width=6)
 
-
-		## join predator relProbPD data to pointdata df
+			relp <- st_as_sf(st_read('relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))
+      relp
+		
+    
+    ## join predator relProbPD data to pointdata df
 			workingpointdata
 			p4
 			w2 <- st_join(workingpointdata,p4,left=TRUE,join=st_nearest_feature)%>%
@@ -672,7 +683,7 @@ standard.dist2jetty) # for some reason the driver wont write the file this big, 
 				pressure = pressur,
 				standard.sgPCA1 = st_PCA1)
 
-
+        
 		## join pressure data to hexsf
 			## pressure metric df
 			c <- st_as_sf(st_read('coocurrencemetrics_withHabitat4winter2020_fromEC_nov23.shp'),crs='WGS84')%>%
