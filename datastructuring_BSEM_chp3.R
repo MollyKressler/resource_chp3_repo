@@ -432,7 +432,7 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 	## deltaTemp - by receiver 
 		workingpointdata <- st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp'),crs='WGS84')%>%
 				rename(buffIDnum=bffIDnm,standard.shark=stndrd_s,standard.fish=stndrd_f,standard.dist2shore=stndr_2,standard.distcmg=stndrd_d,standard.lds=stndrd_l,standard.mds=stndrd_m,standard.hds=stndrd_h)
- # November 2023 - 'pressure' metric of predator and juvenile co-occurence 
+ # DEPRECATED November 2023 - 'pressure' metric of predator and juvenile co-occurence 
 	# working pointdata df
 	pp<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.csv')%>%
 		dplyr::select(buffIDnum,standard.distcmg)
@@ -531,6 +531,27 @@ standard.dist2jetty) # for some reason the driver wont write the file this big, 
 		st_write(df22,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
 		
 		write_sf(df22,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.shp',driver='ESRI Shapefile',append = FALSE)
+
+
+
+	##################################################################
+	## May 2024, adding relative predation pressure to the model. bind to data here
+		relp <- as.data.frame(st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp')))%>%
+		    dplyr::select(-geometry)%>%
+		    mutate(rID = paste0('r',rID))
+		head(relp)
+		
+		pointdata <- left_join(pointdata, relp, by='rID')
+    head(pointdata)    
+
+        ## calculate standardised versions 
+      
+    pointdata <- pointdata %>%
+        mutate(standard.relr = (relPropPD-mean(relPropPD))/sd(relPropPD))
+
+    ## save this
+      st_write(pointdata, 'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.shp', driver = 'ESRI Shapefile')
+      st_write(pointdata, 'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.csv', driver = 'CSV')
 
 
 ###############################

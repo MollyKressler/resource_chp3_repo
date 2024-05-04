@@ -17,13 +17,11 @@ pacman::p_load(tidyverse,MuMIn,ggplot2,flextable,cowplot,patchwork,lme4,stats,gg
 
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/resource_chp3')
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
-			mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
-			mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.csv')
 
-hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%
+hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%
 		mutate(jcode=as.numeric(jcode))%>%
-		rename(standard.hexsgPCA1 = st_PCA1)
+		rename(standard.hexsgPCA1 = standard.sgPCA1)
 
 names(hexdata)
 
@@ -177,7 +175,6 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 		'standard.distcmg*standard.dist2jetty'='Dist. to Jetty * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)
 
-		##### YOU LEFT OFF HERE 17/11/2023: YOU ARE TRYING TO MAKE A STACKED TABLE OF THE THREE DREDGES FOR JUVENILES - ABIOTICS, FISH + ABIOTICS, PRESSURE + ABIOTICS. YOU NEED TO CHECK/CORRECT THE VARIABLE NAMES IN A2T AND A3T, THEN STACK THEM. SAVE THE STACKED AND SEPARATE TABLES. THEN YOU'RE DONW DREDGING AND READY TO MOVE BACK INTO THE BSEM MODEL.
 	a2t <- tbl_regression(a2, exp=FALSE,conf_level=0.95,label=list(standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.dist2shore*standard.distcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)	
 	a3t <- tbl_regression(a3, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.distcmg='Dist. to Central Mangroves','standard.depth*standard.dist2jetty'='Depth * Dist. to Jetty'))%>%
@@ -271,9 +268,9 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 #############################
 
   ## predators, point
-	press.glm <- glm(standard.press ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty , data=pointdata) #define the global model
-
-	pred.dredged <- dredge(press.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
+	pred.glm <- glm(zlogit.sqzrisk ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
+	
+	pred.dredged <- dredge(pred.glm2, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,5)) # dredge from the global model
 
 	press.glm.modelsranked.tabled <- pred.dredged%>%
 		as_tibble %>%
@@ -294,6 +291,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  color(color='black',part='all')%>%
 	  fontsize(size = 10, part = 'all')%>%
 	  autofit()
+	press.glm.modelsranked.tabled
 	  
 	  save_as_image(press.glm.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_RelPropPDresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
 	get.models(pred.dredged,1)[[1]]
@@ -306,11 +304,11 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 # H1: seagrasses and distance metrics
 
-	sgm <- glm(standard.hexsgPCA1 ~ standard.dist2jetty + standard.hexdist2shore + standard.hexdistcmg + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
+	sgm <- glm(standard.sgPCA1 ~ standard.dist2jetty + standard.hexdist2shore + standard.hexdistcmg + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
 
 # H2: fish and distance metrics
 
-	fm <- glm(standard.hexfish ~ standard.hexdist2shore + standard.hexdistcmg + standard.hexsgPCA1 + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
+	fm <- glm(standard.hexfish ~ standard.hexdist2shore + standard.hexdistcmg + standard.sgPCA1 + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
 
 # H3: large sharks and distance metrics
 
@@ -321,7 +319,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 # save the models as RDS 
 	saveRDS(sgm,'seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
 	saveRDS(fm,'fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
-	saveRDS(pm,'hypotesting_dredge_results/largesharks_pressure_glm_hypotesting_distancemetrics_dec23.RDS')
+	saveRDS(pm,'hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 #############################
 ## - Summary table of GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
@@ -330,21 +328,20 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 # read in model RDS
 	sgm <- readRDS('hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
 	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
-	pm <- readRDS('hypotesting_dredge_results/largesharks_pressure_glm_hypotesting_distancemetrics_dec23.RDS')
+	pm <- readRDS('hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 # make table
 	models <- c(sgm, fm, pm)
 	
 	sgf <- flextable::as_flextable(sgm)
 	pf <- flextable::as_flextable(pm)
-	ff <- flextable::as_flextable(ff)
+	ff <- flextable::as_flextable(fm)
 
 	s1 <- tbl_regression(sgm,exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.dist2jetty='Dist. to Jetty','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)
 	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)	
-	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves','standard.depth*standard.dist2jetty'='Depth * Dist. to Jetty'))%>%
-		add_glance_table(label = list(sigma ~ "U03C3"), include = c(AIC))%>%
+	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)
 
 	# side by side
@@ -365,7 +362,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	## AIC of three. mdoels relative to each other
 	AIC(sgm, fm, pm)
 
-	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_dec2023.png' ,webshot='webshot')
+	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_may2024.png' ,webshot='webshot')
 
 #############################
 ## - Residuals checking: histograms of residuals, and standardsised residuals versus fitted, looking for heteroscedasticity
@@ -380,9 +377,9 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	# R Server, read in model RDS
 	sgm <- readRDS('~/resource/data_and_RDS_NOTforupload/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
 	fm <- readRDS('~/resource/data_and_RDS_NOTforupload/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
-	pm <- readRDS('~/resource/data_and_RDS_NOTforupload/largesharks_pressure_glm_hypotesting_distancemetrics_dec23.RDS')
+	pm <- readRDS('~/resource/data_and_RDS_NOTforupload/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
-	hexdata<-read.csv('~/resource/data_and_RDS_NOTforupload/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%
+	hexdata<-read.csv('~/resource/data_and_RDS_NOTforupload/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%
 	  mutate(jcode=as.numeric(jcode))%>%
 	  rename(standard.hexsgPCA1 = st_PCA1)
 
@@ -406,7 +403,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	
 	stacked.bedtdredge.residualsHistograms <- sgm.histresiduals / fm.histresiduals / pm.histresiduals
 	
-	ggsave(stacked.bedtdredge.residualsHistograms, file = '~/resource/data_and_RDS_NOTforupload/figures_and_tables/dredgebestmodel_HISTresiduals_fish_sg_pressure_feb24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+	ggsave(stacked.bedtdredge.residualsHistograms, file = 'hypotesting_dredge_results/dredgebestmodel_HISTresiduals_fish_sg_relativerisk_may24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
 	
 	## residuals versus fitted, plots
     sgm.resids <- resid(sgm)
@@ -432,7 +429,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
     
     stacked.bestdredge.residualsVSfitted <- sgm.fitted.resids / fm.fitted.resids / pm.fitted.resids
     
-    ggsave(stacked.bestdredge.residualsVSfitted, file = '~/resource/data_and_RDS_NOTforupload/figures_and_tables/dredgebestmodel_residualsVSfitted_fish_sg_pressure_feb24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+    ggsave(stacked.bestdredge.residualsVSfitted, file = 'hypotesting_dredge_results/dredgebestmodel_residualsVSfitted_fish_sg_relativerisk_may24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
     
     
     
