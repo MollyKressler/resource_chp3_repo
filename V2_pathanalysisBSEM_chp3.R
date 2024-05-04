@@ -13,7 +13,7 @@
 
 ## Load Workspace, local macbook
 
-pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,arm,webshot2,sfdep,sp,spdep,beepr, HDInterval, patchwork, cowplot)
+pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,arm,webshot2,sfdep,sp,spdep,beepr, HDInterval, patchwork, cowplot, tidybayes)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
 ## Load workspace, R Server 
@@ -149,7 +149,7 @@ stopifnot(nrow(hexdata)==2663) # check
     #####################	
     ## - MODEL4:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure
     
-    modelCode4a<-nimbleCode({
+    modelCode4<-nimbleCode({
       
 
     ##########################
@@ -254,7 +254,7 @@ stopifnot(nrow(hexdata)==2663) # check
     ## need to calculate the values from the abiotics along the paths to the initial parameter, e.g. abtiocs to fishes in path 1. 
 
     value[1] <-  j[1] * j[2] * j[3] * j[4] # path 2, shore * refuge * jetty
-    value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
+    value[2] <- e[1] * e[2] * e[3] * e[4] * e[5] # path 3, shore * jetty * depth 
 
   }) # end of model code 
 
@@ -416,7 +416,7 @@ stopifnot(nrow(hexdata)==2663) # check
     )
     
     ## model4 define and compile
-    model4<-nimbleModel(code=modelCode4a, name="model4",data=myData4,constants = myConstants4,inits=init.values4) #define the model
+    model4<-nimbleModel(code=modelCode4, name="model4",data=myData4,constants = myConstants4,inits=init.values4) #define the model
     
     model4$calculate() # if = NA, indicates missing or invalid initial values, and you have to fix the model until it is numeric.
     model4$initializeInfo()
@@ -441,11 +441,11 @@ stopifnot(nrow(hexdata)==2663) # check
     conf4 <- configureMCMC(model4,monitors=c('a','b','c','d','j','k','e','f','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
     MCMC_model4 <- buildMCMC(conf4,na.rm=TRUE)
     ccMCMC4 <-compileNimble(MCMC_model4, project = model4)
-    samples4 <- runMCMC(ccMCMC4,niter=50000, nburnin=5000, nchains=3,samplesAsCodaMCMC = TRUE);beep(2) # predation pressure in model4 = z-scored logit transformed lemon squeezed relative risk (proporiton 0 to 1)
+    samples4 <- runMCMC(ccMCMC4,niter=12000, nburnin=4000, nchains=3,samplesAsCodaMCMC = TRUE);beep(2) # predation pressure in model4 = z-scored logit transformed lemon squeezed relative risk (proporiton 0 to 1)
 
     summary(samples4)
     
-    saveRDS(samples4,'resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter20000_burn2000_chains3_4may2024.RDS')
+    saveRDS(samples4,'resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
 
     ## model4b
       conf4b <- configureMCMC(model4b,monitors=c('a','b','c','d','j','k','e','f','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
@@ -490,10 +490,9 @@ stopifnot(nrow(hexdata)==2663) # check
     samplesList4 <- readRDS('mcmcsamples_model4_niter10000_burn1000_chains3_3may2024.RDS')
     
     # import RDS, local macbook 
-    samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter20000_burn2000_chains3_4may2024.RDS')
+    samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
     summary(samplesList4)
-    samplesList4b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4b_niter10000_burn1000_chains3_3may2024.RDS')
-    summary(samplesList4b)
+
     
     head(samplesList4$chain1)
     summary(samplesList4)
@@ -507,7 +506,7 @@ stopifnot(nrow(hexdata)==2663) # check
       rename(Parameter = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
       mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
       dplyr::select(-lower,-upper,-Sd, -pg0)%>%	
-      filter(Parameter!=c('value[1]','value[2]'))%>%
+      filter(Parameter!='value[1]', Parameter!='value[2]')%>%
       flextable()%>%
       theme_zebra()%>%
       set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
@@ -518,11 +517,11 @@ stopifnot(nrow(hexdata)==2663) # check
       autofit()
     mcmc_summary_Cmodel4_samplesListfromRDS
     
-    save_as_image(mcmc_summary_Cmodel4_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model4b_niter10000_burn1000_chains3_3may2024.png',res=850)	
+    save_as_image(mcmc_summary_Cmodel4_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_3may2024.png',res=850)	
     
     # grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
     
-    d3b <- gather_draws(samplesList3b,path[])%>%
+    d3b <- gather_draws(samplesList4,path[])%>%
       group_by(.chain)%>%
       mutate(pathID = paste0('path',rep(1:4, each=8000)))%>% 
       mutate(pathIDnum = rep(1:4, each=8000))%>%
@@ -533,12 +532,12 @@ stopifnot(nrow(hexdata)==2663) # check
     
     write.csv(d3b,'resource_chp3/nimblemodel_outputs/samples3b_spreadlong_model3b_niter10000_burn2000_chains3_4dec2023.csv')
     
-    j4_draws <- gather_draws(samplesList3b,j[])%>%
+    j4_draws <- gather_draws(samplesList4,j[])%>%
       group_by(.chain)%>%
       ungroup()
     j4<- as.data.frame(j4_draws[,5])
     head(j4)
-    samplesList3b$chain
+    samplesList4$chain
     
     ## pivot_wider to spread the pathID column into multiple columns, and fill with .value. 
     
@@ -553,13 +552,13 @@ stopifnot(nrow(hexdata)==2663) # check
     # use tidybayes to plot 
     
     caterpillars <- ggplot(d3b, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value))+
-      stat_pointinterval(.width=c(.50,.95),point_size=2)+
+      stat_pointinterval(.width=c(.50,.95),point_size=1.8)+
       ylab('Path ID')+
       xlab('Estimate (mean) & CI (.5,.95)')+
       geom_vline(xintercept=0,linetype=3)+
       theme_bw()
     caterpillars	
-    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.png',device='png',dpi=400,width=5,height=5,units='in')
+    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.png',device='png',dpi=400,width=5,height=5,units='in')
     
 
     
@@ -906,7 +905,7 @@ stopifnot(nrow(hexdata)==2663) # check
 ##################################################
 
 		## For local macbook
-    samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter20000_burn2000_chains3_4may2024.RDS')
+    samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
 
 		hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
 		## For R Server
@@ -948,16 +947,17 @@ stopifnot(nrow(hexdata)==2663) # check
 
 ## From model4 samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
 	# path 2: j4, c3, a1
-	j4.ch<-c(samplesList3b$chain1[,22],samplesList3b$chain2[,22],samplesList3b$chain3[,22])
-	c3.ch<-c(samplesList3b$chain1[,11],samplesList3b$chain2[,11],samplesList3b$chain3[,11])
-	a1.ch<-c(samplesList3b$chain1[,1],samplesList3b$chain2[,1],samplesList3b$chain3[,1])
+	j4.ch<-c(samplesList4$chain1[,22],samplesList4$chain2[,22],samplesList4$chain3[,22])
+	c3.ch<-c(samplesList4$chain1[,11],samplesList4$chain2[,11],samplesList4$chain3[,11])
+	a1.ch<-c(samplesList4$chain1[,1],samplesList4$chain2[,1],samplesList4$chain3[,1])
 
-	# path 3: e1, e2, e3, e4, a7
-	e1.ch <-c(samplesList3b$chain1[,14], samplesList3b$chain2[,14],samplesList3b$chain3[,14] )
-	e2.ch <-c(samplesList3b$chain1[,15], samplesList3b$chain2[,15],samplesList3b$chain3[,15] )
-	e3.ch <-c(samplesList3b$chain1[,16], samplesList3b$chain2[,16],samplesList3b$chain3[,16] )
-	e4.ch <-c(samplesList3b$chain1[,17], samplesList3b$chain2[,17],samplesList3b$chain3[,17] )
-	a7.ch <-c(samplesList3b$chain1[,7], samplesList3b$chain2[,7],samplesList3b$chain3[,7] )
+	# path 3: e1, e2, e3, e4, e5, a7
+	e1.ch <-c(samplesList4$chain1[,14], samplesList4$chain2[,14],samplesList4$chain3[,14] )
+	e2.ch <-c(samplesList4$chain1[,15], samplesList4$chain2[,15],samplesList4$chain3[,15] )
+	e3.ch <-c(samplesList4$chain1[,16], samplesList4$chain2[,16],samplesList4$chain3[,16] )
+  e4.ch <-c(samplesList4$chain1[,17], samplesList4$chain2[,17],samplesList4$chain3[,17] )
+  e5.ch <-c(samplesList4$chain1[,18], samplesList4$chain2[,18],samplesList4$chain3[,18] )
+	a7.ch <-c(samplesList4$chain1[,7], samplesList4$chain2[,7],samplesList4$chain3[,7] )
 
 ## Run loops for each path, to calculate path estimate given a hexagon cell
 

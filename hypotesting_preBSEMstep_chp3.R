@@ -293,7 +293,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  autofit()
 	press.glm.modelsranked.tabled
 	  
-	  save_as_image(press.glm.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_RelPropPDresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
+	  save_as_image(press.glm.modelsranked.tabled,'resource_chp3/hypotesting_dredge_results/dredged_results_RelPropPDresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
 	get.models(pred.dredged,1)[[1]]
 
 
@@ -341,7 +341,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 		bold_p(t=0.05)
 	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)	
-	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves'))%>%
+	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves', 'standard.depth:standard.dist2jetty' = ' Depth * Dist. to Jetty'))%>%
 		bold_p(t=0.05)
 
 	# side by side
