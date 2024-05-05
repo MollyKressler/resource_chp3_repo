@@ -346,88 +346,124 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 		st_write(df1shp2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
 		st_write(df1shp2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp',driver='ESRI Shapefile')
 
-	## DEPRECATED probPred - (1) calculate receiver specific detection probabilities; (2) join them to df1/pointdata. 
+	##  probPred - (1) calculate receiver specific detection probabilities; (2) join them to df1/pointdata. 
 		## sum(predator dettections total in year) = dT
 		## sum(predator detections at receiver 'x' in year) = dX
 		### Pr(predators using the area over a year relative to other receivers) = dX / dT. 
 		# spatially comparable, temporally flat 
 		# for each species separately, and then both together
 
-		workingpointdata <- st_as_sf(st_read('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp'),crs='WGS84')%>%
-				rename(buffIDnum=bffIDnm,standard.shark=stndrd_s,standard.fish=stndrd_f,standard.dist2shore=stndr_2,standard.distcmg=stndrd_d,standard.lds=stndrd_l,standard.mds=stndrd_m,standard.hds=stndrd_h)
 		## calculate the relProbPD risk per receiver
-		p <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/predators_detectedwithinstudyarea_MKthesis2019to2020_aug2023.shp'))%>%
-		  dplyr::select(-statn_x,-statn_y)
-		p <- st_as_sf(st_read('predators_detectedwithinstudyarea_MKthesis2019to2020_aug2023.shp'))%>%
-		  dplyr::select(-statn_x,-statn_y)
 		
-			wherePredsdontgo <- expand.grid(rID=c(10,22,24),Species=c('Carcharhinus limbatus','Negaprion brevirostris'),n=0)%>%
-				left_join(.,d2)%>%
-				st_as_sf()%>%
-				dplyr::select(rID,Species,n,geometry)
-			whereLimbatusdontgo <- expand.grid(rID=c(6,9,29,30,31),Species='Carcharhinus limbatus',n=0)%>%
-				left_join(.,d2)%>%
-				st_as_sf()%>%
-				dplyr::select(rID,Species,n,geometry)
+		relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))
+	    relp
 
-			p2<- p %>%
-				dplyr::select(Species,rID)%>%
-				group_by(Species,rID)%>%
-				tally()%>%
-				bind_rows(wherePredsdontgo,whereLimbatusdontgo)
+	    #st_write(relp,'lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
+		#st_write(relp,'lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp',driver='ESRI Shapefile')
 
-			p3<-expand.grid(rID=seq(1,35,1))%>%
-				left_join(.,p2,multiple='all')%>%
-				mutate(n=replace_na(n,0),rID=as.character(rID))%>%
-				st_as_sf()
-			p3 # sf with one row per species per receiver, with the detections tallied for each row.
 
-			p4 <- p3 %>%
-				group_by(rID)%>%
-				summarise(ndetts=sum(n))%>%
-				st_join(.,p3b%>%dplyr::select(total),join=st_nearest_feature)%>%
-				mutate(relPropPD = ndetts/total,relPropPD=replace_na(relPropPD,0)) # non-species specific relative proportion of risk - not going to try and format the species specific into the table atm. 
-
-			p4<-st_join(p3,workingpointdata,join=st_nearest_feature)%>%
-				dplyr::select(-PIT,-id,-locatin,-intervl)
-			p4 # receiver, with relative proportion of predator detections, and geometry
-			p5<-st_cast(p4,'POINT',group_or_split=FALSE) # for 3 receivers there was a duplication in the geometry, same point geometry but organised as multipoint. This just selects the first point feature form those multipoints. 
-			summary(p5)
-			write_sf(p5, 'lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp')
-
-			relativePropPDdettsreceivers<-ggplot()+
+		relativePropPDdettsreceivers<-ggplot()+
 			geom_sf(data=land,fill='grey70',col=NA)+
-			geom_sf(data=p4,aes(size=relPropPD,col=relPropPD))+
+			geom_sf(data=relp,aes(size=relPropPD,col=relPropPD))+
 				scale_colour_gradient(low='#8f5ab0',high='#e27c0e',limits=c(0.0,1.0),name='Relative Risk')+
 				scale_size(guide='none')+
 				theme_bw()
 			
 			ggsave(relativePropPDdettsreceivers,file='lemonspredators_20192020blacktipsANDbulls/descriptive_stats_and_figures/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.png',device='png',units='in',dpi=950,height=7,width=6)
 
-			relp <- st_as_sf(st_read('relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))
-      relp
-		
-    
-    ## join predator relProbPD data to pointdata df
-			workingpointdata
-			p4
-			w2 <- st_join(workingpointdata,p4,left=TRUE,join=st_nearest_feature)%>%
-				dplyr::select(-rID,-total,-ndetts)
-			w2
-		
-		## standardise dist2jetty, relPropPD,depth
-		summary(w2)
-			w3 <- w2 %>% 				
-				mutate(standard.relPropPD=((as.numeric(relPropPD)-mean(as.numeric(relPropPD)))/sd(as.numeric(relPropPD))),.before='geometry')%>%
-				mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.before='geometry')%>%
-				mutate(standard.depth=((as.numeric(depth)-mean(as.numeric(depth)))/sd(as.numeric(depth))),.before='geometry')%>%
-				dplyr::select(-id,intervl,lctn_cd,locatin)
+	    
+	##################################################################
+	## May 2024, adding relative predation pressure to the model. bind to data here
+			relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
+			    mutate(rID = paste0('r',rID))
+			head(relp)
+			
+			pointdata <- left_join(pointdata, relp%>%dplyr::select(-geometry), by='rID')
+	    head(pointdata)    
+
+	        ## calculate standardised versions 
+	      
+	    pointdata <- pointdata %>%
+	        mutate(standard.relr = (relPropPD-mean(relPropPD))/sd(relPropPD))
+
+	## Prepare data for modelling - model4, a z-scored logit transformed lemon squeezed relative risk proportion [0,1]
+	## 1. - Lemon squeeze the relPropPD, 'sqzrisk'
+	    ## pointdata 
+	      N = as.numeric(nrow(pointdata))
+
+	      pointdata <- pointdata %>%
+	        mutate(sqzrisk = ((pointdata$relPropPD*(N-1))+0.5)/N)
+	      pointdata
+	      summary(pointdata)
+
+
+	## 2. - Logit transform L-squeezed relPropPD, 'logit.sqzrisk'
+	    ## pointdata 
+	        pointdata <- pointdata %>% 
+	          mutate(logit.sqzrisk = logit(sqzrisk))
+	          summary(pointdata)
+
+	## 3. - z-transform logit relpropdPD, 'zlogit.sqzrisk'
+	    ## pointdata 
+	        pointdata <- pointdata %>% 
+	          mutate(zlogit.sqzrisk = (logit.sqzrisk-mean(logit.sqzrisk))/sd(logit.sqzrisk))
+	          summary(pointdata)
+
+	## Also want to test out using the detection counts of large sharks, plain - model4b
+
+	  pointdata <- pointdata %>% 
+	      mutate(standard.larges = (ndetts - mean(ndetts))/sd(ndetts))    
+	  summary(pointdata)
+
+	#### save
+
+	    st_write(pointdata, 'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.csv', driver = 'CSV')
+	    st_write(pointdata, 'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.shp', driver = 'ESRI Shapefile')
+
+
+	### Add zlogit.sqzrisk to hexdata with a join by 'rID'
+    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
+    hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+      rename(standard.hexshark = stndrd_hxs,
+        standard.hexfish = stndrd_hxf,
+        standard.hexdist2shore = stndrd_h2,
+        standard.hexdistcmg = stndrd_hxd,
+        standard.hexlowdensg = stndrd_hxl,
+        standard.hexmeddensg = stndrd_hxm,
+        standard.dist2jetty = stndrd_d2,
+        standard.depth = stndrd_d,
+        standard.sgPCA1 = st_PCA1,
+        zlogit.sqzrisk = zlgt_sq,
+        relPropPD = rlPrpPD
+        )
+
+    hex2 <- hexsf %>%
+      dplyr::select(-zlogit.sqzrisk, -relPropPD, -total,)%>%
+      mutate(rID = as.character(rID))
+    head(hex2)
+
+    r <- pointdata %>%
+        distinct(rID, .keep_all = TRUE)%>%
+        mutate(rID = as.character(buffIDnum))%>%
+        dplyr::select(rID, total, relPropPD, zlogit.sqzrisk)
+    head(r)
+    summary(r)
+
+    hex3 <- left_join(hex2,r, by ='rID')
+
+
+        ## save hexdata
+          st_write(hex3, 'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv', driver = 'CSV')
+
+          st_write(hex3, 'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp', driver = 'ESRI Shapefile')
 
 
 
-		## update file to include relProbPD
-		st_write(w2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.csv',driver='CSV',delete_layer=TRUE,delete_dsn=TRUE)
-		st_write(w2,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_aug23.shp',driver='ESRI Shapefile',append=FALSE)
+
+
+
+
+
 
 	## deltaTemp - by receiver 
 		workingpointdata <- st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_nov23.shp'),crs='WGS84')%>%

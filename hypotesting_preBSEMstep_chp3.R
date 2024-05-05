@@ -270,7 +270,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
   ## predators, point
 	pred.glm <- glm(zlogit.sqzrisk ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
 	
-	pred.dredged <- dredge(pred.glm2, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,5)) # dredge from the global model
+	pred.dredged <- dredge(pred.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,5)) # dredge from the global model
 
 	press.glm.modelsranked.tabled <- pred.dredged%>%
 		as_tibble %>%
@@ -282,7 +282,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  group_by(pick(2,3,4,5,6,7,8)) %>%
 	  summarise(model = paste(name, collapse = ' + ')) %>%
 	  ungroup() %>%
-	  select(model, everything())%>% 
+	  dplyr::select(model, everything())%>% 
 	  arrange(-weight) %>%
 	  flextable()%>%	  
 	  theme_zebra()%>%
@@ -294,9 +294,13 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	press.glm.modelsranked.tabled
 	  
 	  save_as_image(press.glm.modelsranked.tabled,'resource_chp3/hypotesting_dredge_results/dredged_results_RelPropPDresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
-	get.models(pred.dredged,1)[[1]]
+	
+		pm1<-get.models(pred.dredged,1)[[1]]
+		pm2<-get.models(pred.dredged,2)[[1]]
+		pm3 <-glm(standard.press ~ standard.depth + standard.dist2jetty + standard.distcmg + standard.depth*standard.dist2jetty + standard.depth*standard.distcmg, data=pointdata) 
+		summary(pm3)
 
-
+		with(summary(pm3), 1 - deviance/null.deviance) R2 = 0.139
 
 #############################
 ## - GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
@@ -314,7 +318,6 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 	pm <- 	get.models(pred.dredged,1)[[1]]
 	pmm<-glm(standard.press ~ standard.depth + standard.dist2jetty + standard.distcmg + standard.depth*standard.dist2jetty, data=pointdata)
-
 
 # save the models as RDS 
 	saveRDS(sgm,'seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')

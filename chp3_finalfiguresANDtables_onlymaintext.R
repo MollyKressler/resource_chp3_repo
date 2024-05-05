@@ -108,8 +108,12 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 ## Descriptive plots for predator metric: relative risk at receivers
 ###################
+      N = 35
 
-	relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))
+	relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
+        mutate(sqzrisk = ((relPropPD*(N-1))+0.5)/N)%>%
+        mutate(logit.sqzrisk = logit(sqzrisk))%>%
+        mutate(zlogit.sqzrisk = (logit.sqzrisk-mean(logit.sqzrisk))/sd(logit.sqzrisk))
     relp
    	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 
@@ -123,6 +127,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	relativePropPDdettsreceivers
 	
 	ggsave(relativePropPDdettsreceivers,file='lemonspredators_20192020blacktipsANDbulls/descriptive_stats_and_figures/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.png',device='png',units='in',dpi=950,height=7,width=6)
+
 
 
 ###################
@@ -240,11 +245,12 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
 		flextable()%>%
 			compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
-			compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Depth*Dist. to Jetty\n\ + Relative Risk'))%>%
+			compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Dist. to Refuge\n\ + Depth*Dist. to Jetty + Relative Risk'))%>%
 			compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
 			compose(i=4,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty'))%>%
 			theme_zebra()%>%
 			align(j=3:4, align = 'center', part = 'all')%>%
+			align(j=1, align = 'center', part = 'all')%>%
 			font(fontname = 'Arial', part = 'all')%>%
 			color(color='black',part='all')%>%
 			fontsize(size = 10, part = 'all')%>%
