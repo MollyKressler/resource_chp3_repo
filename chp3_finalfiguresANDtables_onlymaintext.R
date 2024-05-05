@@ -7,6 +7,27 @@ pacman::p_load(sf, tidyverse, lubridate, ggplot2, patchwork, cowplot, flextable,
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 #####
 
+
+###################
+## Common dataframes and formatting
+###################
+    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
+    hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+      dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
+      rename(standard.hexshark = stndrd_hxs,
+        standard.hexfish = stndrd_hxf,
+        standard.hexdist2shore = stndrd_h2,
+        standard.hexdistcmg = stndrd_hxd,
+        standard.hexlowdensg = stndrd_hxl,
+        standard.hexmeddensg = stndrd_hxm,
+        standard.dist2jetty = stndrd_d2,
+        standard.depth = stndrd_d,
+        standard.sgPCA1 = st_PCA1,
+        logit.sqzrisk = lgt_sqz,
+        zlogit.sqzrisk = zlgt_sq,
+        relPropPD = rlPrpPD
+        )
+
 ###################
 ## Metadata on shark detections
 ###################

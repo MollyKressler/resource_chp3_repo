@@ -907,9 +907,25 @@ stopifnot(nrow(hexdata)==2663) # check
 		## For local macbook
     samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
 
-		hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
+    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
+    hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+      dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
+      rename(standard.hexshark = stndrd_hxs,
+        standard.hexfish = stndrd_hxf,
+        standard.hexdist2shore = stndrd_h2,
+        standard.hexdistcmg = stndrd_hxd,
+        standard.hexlowdensg = stndrd_hxl,
+        standard.hexmeddensg = stndrd_hxm,
+        standard.dist2jetty = stndrd_d2,
+        standard.depth = stndrd_d,
+        standard.sgPCA1 = st_PCA1,
+        logit.sqzrisk = lgt_sqz,
+        zlogit.sqzrisk = zlgt_sq,
+        relPropPD = rlPrpPD
+        )
+
 		## For R Server
-		samplesList3b <- readRDS('mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
+		samplesList4 <- readRDS('mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
 		hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
 	  head(hexdata)	
 	
@@ -923,8 +939,8 @@ stopifnot(nrow(hexdata)==2663) # check
 		sample_n(5)%>%
 		as.data.frame() 
 
-## Prepare hexdata for predictions with relative risk - model4, a z-scored logit transformed lemon squeezed relative risk proportion [0,1]
-## 1. - Lemon squeeze the relPropPD, 'sqzrisk'
+## Don't run everytime - hexdata has been updated with the zlogit.sqzrisk var. Prepare hexdata for predictions with relative risk - model4, a z-scored logit transformed lemon squeezed relative risk proportion [0,1]
+  ## 1. - Lemon squeeze the relPropPD, 'sqzrisk'
       N = as.numeric(nrow(hexdata))
 
       hexdata <- hexdata %>%
@@ -933,17 +949,23 @@ stopifnot(nrow(hexdata)==2663) # check
       summary(hexdata)
 
 
-## 2. - Logit transform L-squeezed relPropPD, 'logit.sqzrisk'
+  ## 2. - Logit transform L-squeezed relPropPD, 'logit.sqzrisk'
         hexdata <- hexdata %>% 
           mutate(logit.sqzrisk = logit(sqzrisk))
           summary(hexdata)
 
-## 3. - z-transform logit relpropdPD, 'zlogit.sqzrisk'
+  ## 3. - z-transform logit relpropdPD, 'zlogit.sqzrisk'
         hexdata <- hexdata %>% 
           mutate(zlogit.sqzrisk = (logit.sqzrisk-mean(logit.sqzrisk))/sd(logit.sqzrisk))
           summary(hexdata)
 
+        ## save hexdata
+          st_write(hexdata, 'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv', driver = 'CSV')
 
+          hexsf2 <- left_join(hexsf%>%dplyr::select(jcode,geometry),hexdata%>%mutate(jcode=as.character(jcode)), by='jcode')
+          hexsf2
+
+          st_write(hexsf2, 'resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp', driver = 'ESRI Shapefile')
 
 ## From model4 samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
 	# path 2: j4, c3, a1
@@ -968,7 +990,8 @@ stopifnot(nrow(hexdata)==2663) # check
 		# e1 = dist2shore
 		# e2 = depth
 		# e3 = dist2jetty
-		# e4 = dist2jetty*depth
+    # e4 = distcmg
+		# e5 = dist2jetty*depth
 		# a7 = predator pressure
 
 	## Define size of objects/matrices
@@ -999,7 +1022,7 @@ stopifnot(nrow(hexdata)==2663) # check
 	for(i in 1:n.hex){
 		setTxtProgressBar(pb, i)
 		for(j in 1:J){
-			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.dist2jetty[i]*hexdata$standard.depth[i]) + (a7.ch[j]*hexdata$standard.hexpress[i]) 
+			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i])+ (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
 		}
 	};beep(3)
 
@@ -1025,9 +1048,9 @@ stopifnot(nrow(hexdata)==2663) # check
 		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
 		
 		for(i in 1:n.hex){
-			#p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
-			#p2pred[i,3] <- hdi(preds.path2[i,])[2]
-			#p2pred[i,4] <- hdi(preds.path2[i,])[1]
+			p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
+			p2pred[i,3] <- hdi(preds.path2[i,])[2]
+			p2pred[i,4] <- hdi(preds.path2[i,])[1]
 			setTxtProgressBar(pb, i)
 			p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
 			p3pred[i,3] <- hdi(preds.path3[i,])[2]
@@ -1039,9 +1062,11 @@ stopifnot(nrow(hexdata)==2663) # check
 		head(p3pred)
 
 	## Updated approach: 5 March 2024
-	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model3bdec2023_calcFeb2024.RData')
-	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model3bdec2023_calcFeb2024.RData')
-	hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%mutate(jcode=as.character(jcode))
+	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+	p3 <- readRDS('resource_chp3//path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+	
+  hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%mutate(jcode=as.character(jcode))
+    head(hexdata)
 
 	## re-format data
 	dat.p2 <- as.matrix(p2)
@@ -1094,24 +1119,38 @@ stopifnot(nrow(hexdata)==2663) # check
 
 ## Save path estimates and path means + HDI dfs
 
-	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')
-	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')
+	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')
+	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')
 
 ##################################################
 ## Path inference diagnostics ##
 ##################################################
 
 	## local R, macbook 
-	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
+	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
 
 ## histograms of HDIs
-	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw()  + labs(subtitle = 'A')  + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
-	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'B') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
-	p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'C') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
-	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + theme_bw() + labs(subtitle = 'D') + theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+    theme_bw()  + 
+    labs(subtitle = 'A') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+
+	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+    theme_bw() + 
+    labs(subtitle = 'B') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	
+  p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+    theme_bw() + 
+    labs(subtitle = 'C') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+    theme_bw() + 
+    labs(subtitle = 'D') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
 
 	hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
 
@@ -1123,20 +1162,28 @@ stopifnot(nrow(hexdata)==2663) # check
 ##################################################
 	pacman::p_load(sf, ggplot2, patchwork,tidyverse)
   
-	## local R, macbook
-	hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'), crs = 'WGS84')
+  hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+      dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
+      rename(standard.hexshark = stndrd_hxs,
+        standard.hexfish = stndrd_hxf,
+        standard.hexdist2shore = stndrd_h2,
+        standard.hexdistcmg = stndrd_hxd,
+        standard.hexlowdensg = stndrd_hxl,
+        standard.hexmeddensg = stndrd_hxm,
+        standard.dist2jetty = stndrd_d2,
+        standard.depth = stndrd_d,
+        standard.sgPCA1 = st_PCA1,
+        logit.sqzrisk = lgt_sqz,
+        zlogit.sqzrisk = zlgt_sq,
+        relPropPD = rlPrpPD
+        )
+
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
-	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
+	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.RData')%>%
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
 	head(p3pred)
-
-	## R server 
-	hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.shp'), crs = 'WGS84')
-	p2pred <- read.csv('path2_means_andHDI_at_heaxgons_model3bdec2023_calcFeb2024.csv')%>%
-	  mutate(jcode = as.character(jcode))
-
 
 	## cut out the splattering of stuff to the south for plotting
 		 cropbox <- st_as_sf(st_bbox(c(xmin = 79.24, xmax=79.31, ymin = 25.68, ymax = 25.78), crs='WGS84'))
@@ -1254,9 +1301,6 @@ stopifnot(nrow(hexdata)==2663) # check
         theme_bw()+
         theme(axis.text.x = element_text(angle=45, hjust = 1))
       p3.lower.diff
-
-
-
 
 
 	## various arrangements for pub
