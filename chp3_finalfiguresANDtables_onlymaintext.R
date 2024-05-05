@@ -85,55 +85,23 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 
 
 ###################
-## Descriptive plots for predator metric
+## Descriptive plots for predator metric: relative risk at receivers
 ###################
+
+	relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))
+    relp
+   	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
+
 	
-	dd <- read_csv('lemonspredators_20192020blacktipsANDbulls/cooccurence_juvenilesANDlargesharks_within60minoflargedett.csv',col_select = c(rID:pressure))
-	## individually
-	a <- ggplot(data=dd%>%mutate(rID=as.character(rID)),aes(x=reorder(rID,-n.cooc),y=n.cooc))+
-			geom_bar(stat='identity',fill='#3a6c74')+
-			ylab('Co-occurences (total, count)')+
-			xlab('Receiver')+
-			theme_bw()	
-
-	b <- ggplot(data=dd%>%mutate(rID=as.character(rID)),aes(x=reorder(rID,-cooc.days),y=cooc.days))+
-			geom_bar(stat='identity',fill='#3a6c74')+
-			ylab('Days of Co-occurences (total, count)')+
-			xlab('Receiver')+
-			theme_bw()
-
-	pred.plots.forEquation <- a / b 
-	pred.plots.forEquation		
-
-	ggsave(pred.plots.forEquation,file='resource_chp3/cooccurences_anddaysof_predationpressureMetric_forsupplmentary.png',device=png,units='in',height=6,width=6,dpi=850)
-
-	## or, in one plot, 2 y-axes
-	ddd <- dd %>% 
-		dplyr::select('rID','n.cooc','cooc.days')%>% 
-		mutate(cooc.days = cooc.days*10)%>%
-		pivot_longer(-rID) %>% 
-		mutate(rID = as.character(rID))
-
-	coeff <- 10
-	colors <- c('#b6e5fc','#3a6c74')
-
-	cooccur.plots <- ggplot(ddd, aes(x=reorder(rID,-value),y = value ,fill = name))+
-		geom_col(position='dodge2')+
-		scale_y_continuous('Co-occurrences (count)', sec.axis = sec_axis(~.*.10, name = 'Days of Co-occurrences (count * 10)'))+
-		scale_fill_manual(values=colors,labels = c('Days of Co-oc.', 'Co-oc. Count'),name='')+
-		xlab('Receiver')+
-		theme_bw()+
-		theme(legend.position = 'bottom')
+	relativePropPDdettsreceivers<-ggplot()+
+	geom_sf(data=land,col='grey75',lwd=0.5)+
+	geom_sf(data=relp,aes(size=ndetts,col=relPropPD))+
+		scale_colour_gradient(low='navy',high='goldenrod2',limits=c(0.0,0.5),name='Relative Risk')+
+		scale_size(name = 'No. of Detections')+
+		theme_bw()
+	relativePropPDdettsreceivers
 	
-	ggsave(cooccur.plots,file='resource_chp3/cooccurences_anddaysof_predationpressureMetric_forsupplmentary.png',device=png,units='in',height=4,width=6,dpi=850)
-
-	c<-ggplot(data=dd%>%mutate(rID=as.character(rID)),aes(x=reorder(rID,-pressure),y=pressure))+
-			geom_bar(stat='identity',fill='#3a6c74')+
-			ylab('Pressure')+
-			xlab('Receiver')+
-			theme_bw()
-
-	ggsave(c,file='resource_chp3/histogram_PRESSURE_byreceiver.png',device=png,units='in',height=3,width=6,dpi=850)
+	ggsave(relativePropPDdettsreceivers,file='lemonspredators_20192020blacktipsANDbulls/descriptive_stats_and_figures/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.png',device='png',units='in',dpi=950,height=7,width=6)
 
 
 ###################
@@ -225,260 +193,46 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	
 	ggsave(sgPCAplot,file='resource_chp3/seagrassesPCA_distributionplot_forchpater3writeup_.png',device=png,units='in',height=8,width=4.2,dpi=850)
 
-###################
-## Patterns of fish, predation pressure and seagrass based on abiotic covariates from 'best' dredge models
-###################
+
+
+##############################################
+## Table: pathway description, estimates, CI and Support ##
+##############################################
 	
-	# read in model RDS
-	sgm <- readRDS('resource_chp3/hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	fm <- readRDS('resource_chp3/hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
-	pm <- readRDS('resource_chp3/hypotesting_dredge_results/largesharks_pressure_glm_hypotesting_distancemetrics_dec23.RDS')
-	# get data for predicting into hexagons 
-	hexdata<-read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_nov23.csv')%>%
-		mutate(jcode=as.numeric(jcode))%>%
-		rename(standard.hexsgPCA1 = st_PCA1)
-	pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
-			mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
-			mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
+	## For local macbook
+	samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
 
 
-	navy: #3a6c74
-	
-	##################
-	## seagrasses: dist2jetty, dist2shore, distcmg, dst2shore*distcmg
-		
-		sgm.hex.predicts.dist2jetty<-as.data.frame(ggpredict(sgm,terms='standard.dist2jetty[all]',type='fixed'))
-		sgm.plot1<-	ggplot()+
-			geom_point(data=hexdata, aes(x=standard.dist2jetty, y=standard.hexsgPCA1),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Seagrass PCA (standardised)')+xlab('Dist. to Jetty (standardised)')+
-			geom_line(data=sgm.hex.predicts.dist2jetty,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=sgm.hex.predicts.dist2jetty,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
+	pathwayresults_table <- MCMCsummary(samplesList4,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
+			tibble::rownames_to_column()%>%
+			rename_with(str_to_title)%>%
+		rename('pg0'='P>0')%>%
+	  	mutate(pg00 = case_when(Mean > 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
+		arrange(-pg00)%>%
+		rename(Pathway = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+		mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+		mutate(Estimate = round(Estimate, 4))%>%
+		mutate(lower = case_when(Path != 1 ~ round(lower,3), Path == 1 ~ round(lower,5)),upper = case_when(Path != 1 ~ round(upper,4), Path == 1 ~ round(upper,4)))%>%
+		mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
+		mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
+		mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
+		dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
+		flextable()%>%
+			compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
+			compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Depth*Dist. to Jetty\n\ + Relative Risk'))%>%
+			compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
+			compose(i=4,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty'))%>%
+			theme_zebra()%>%
+			align(j=3:4, align = 'center', part = 'all')%>%
+			font(fontname = 'Arial', part = 'all')%>%
+			color(color='black',part='all')%>%
+			fontsize(size = 10, part = 'all')%>%
+			autofit()
+	pathwayresults_table
 
-		sgm.hex.predicts.dist2shore<-as.data.frame(ggpredict(sgm,terms='standard.hexdist2shore[all]',type='fixed'))
-		sgm.plot2<- ggplot()+
-			geom_point(data=hexdata, aes(x=standard.hexdist2shore, y=standard.hexsgPCA1,xmin=min(hexdata$standard.hexdist2shore),xmax=max(standard.hexdist2shore)),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Seagrass PCA (standardised)')+xlab('Dist. to Shore (standardised)')+
-			geom_line(data=sgm.hex.predicts.dist2shore,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=sgm.hex.predicts.dist2shore,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
-
-		sgm.hex.predicts.dist2cmg<-as.data.frame(ggpredict(sgm,terms='standard.hexdistcmg[all]',type='fixed'))
-		sgm.plot3<- ggplot()+
-			geom_point(data=hexdata, aes(x=standard.hexdistcmg, y=standard.hexsgPCA1,xmin=min(hexdata$standard.hexdistcmg),xmax=max(standard.hexdistcmg)),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Seagrass PCA (standardised)')+xlab('Dist. to Refuge (standardised)')+
-			geom_line(data=sgm.hex.predicts.dist2cmg,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=sgm.hex.predicts.dist2cmg,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
-
-		## you have to calculate and plot the interaction terms differently. ggpredict puts the first term on the x-axis and then shows the second term at representative values - here three: the mean, and +- a SD unit 
-		sgm.hex.predicts.intx.dist2.shore.cmg<-as.data.frame(ggpredict(sgm,terms=c("standard.hexdist2shore", "standard.hexdistcmg"),type='fixed'))
-		
-		intx.col.sgm <- c('#3a6c74','#708d8e','#3cbcfc')
-		sgm.plot4<-
-		ggplot()+
-			geom_line(data=sgm.hex.predicts.intx.dist2.shore.cmg,aes(x=x,y=predicted, group=group, col=group),size=.6,linetype=1)+
-			scale_color_manual(values=intx.col.sgm,name='Levels')+
-			geom_ribbon(data=sgm.hex.predicts.intx.dist2.shore.cmg,aes(group=group,x=x,ymin=conf.low,ymax=conf.high,fill=group),alpha=0.3)+		
-			scale_fill_manual(values=intx.col.sgm,name='Levels')+
-			ylab('Seagrass PCA (standardised)')+
-			xlab('Dist. to Shore (standardised')+
-			theme_bw()+
-		theme(legend.position='bottom')
+	save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model4_niter12000_burn4000_chains3_4may2024.png')	
 
 
-		# put them together in a box
-		sgm.prediction.plots.formatted <- (sgm.plot1 + sgm.plot2)/(sgm.plot3 + sgm.plot4)
-
-		ggsave(sgm.prediction.plots.formatted,file='hypotesting_dredge_results/seescapescolortheme_seagrassesGLM_fromDredge_fourplots_predictions.png',device='png',units='in',dpi=350,height=6,width=7)
-
-
-	##################
-	## fishes: sgPCA1, dist2shore, distcmg, dst2shore*distcmg
-		
-		fm.hex.predicts.sgPCA<-as.data.frame(ggpredict(fm,terms='standard.hexsgPCA1[all]',type='fixed'))
-		fm.plot1<- ggplot()+
-			geom_point(data=hexdata, aes(x=standard.hexsgPCA1, y=standard.hexfish),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Fishes (standardised)')+xlab('Seagrasses PCA (standardised)')+
-			geom_line(data=fm.hex.predicts.sgPCA,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=fm.hex.predicts.sgPCA,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
-
-		fm.hex.predicts.distcmg<-as.data.frame(ggpredict(fm,terms='standard.hexdistcmg[all]',type='fixed'))
-		fm.plot2<- ggplot()+
-			geom_point(data=hexdata, aes(x=standard.hexdistcmg, y=standard.hexfish,xmin=min(hexdata$standard.hexdistcmg),xmax=max(standard.hexdistcmg)),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Fishes (standardised)')+xlab('Dist. to Refuge (standardised)')+
-			geom_line(data=fm.hex.predicts.distcmg,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=fm.hex.predicts.distcmg,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
-
-		fm.hex.predicts.dist2shore<-as.data.frame(ggpredict(fm,terms='standard.hexdist2shore[all]',type='fixed'))
-		fm.plot3<- ggplot()+
-			geom_point(data=hexdata, aes(x=standard.hexdist2shore, y=standard.hexfish,xmin=min(hexdata$standard.hexdist2shore),xmax=max(standard.hexdist2shore)),pch=21,cex=0.5,col='#3a6c74')+
-			ylab('Fishes (standardised)')+xlab('Dist. to Shore (standardised)')+
-			geom_line(data=fm.hex.predicts.dist2shore,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-			geom_ribbon(data=fm.hex.predicts.dist2shore,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-			theme_bw()
-
-		## you have to calculate and plot the interaction terms differently. ggpredict puts the first term on the x-axis and then shows the second term at representative values - here three: the mean, and +- a SD unit 
-		fm.hex.predicts.intx.dist2.shore.cmg<-as.data.frame(ggpredict(fm,terms=c("standard.hexdist2shore", "standard.hexdistcmg"),type='fixed'))
-		
-		intx.col.fm <- c('#3a6c74','#708d8e','#3cbcfc')
-		fm.plot4<-
-		ggplot()+
-			geom_line(data=fm.hex.predicts.intx.dist2.shore.cmg,aes(x=x,y=predicted, group=group, col=group),size=.6,linetype=1)+
-			scale_color_manual(values=intx.col.fm,name='Levels')+
-			geom_ribbon(data=fm.hex.predicts.intx.dist2.shore.cmg,aes(group=group,x=x,ymin=conf.low,ymax=conf.high,fill=group),alpha=0.3)+		
-			scale_fill_manual(values=intx.col.fm,name='Levels')+
-			ylab('Fishes (standardised)')+
-			xlab('Dist. to Shore (standardised)')+
-			theme_bw()+
-		theme(legend.position='bottom')
-
-
-		# put them together in a box
-		fm.prediction.plots.formatted <- (fm.plot1 + fm.plot2)/(fm.plot3 + fm.plot4)
-
-		ggsave(fm.prediction.plots.formatted,file='hypotesting_dredge_results/seescapescolortheme_fishmetricGLM_fromDredge_fourplots_predictions.png',device='png',units='in',dpi=350,height=6,width=7)
-
-
-	##################
-	## large sharks: depth, dist2jetty, distcmg, depth*dist2jetty
-
-	pm..predicts.dist2jetty<-as.data.frame(ggpredict(pm,terms='standard.dist2jetty[all]',type='fixed'))
-	pm.plot1<- ggplot()+
-		geom_point(data=pointdata, aes(x=standard.dist2jetty, y=standard.press),pch=21,col='#3a6c74')+
-		ylab('Predation Pressure (standardised)')+xlab('Dist. to Jetty (standardised)')+
-		geom_line(data=pm..predicts.dist2jetty,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-		geom_ribbon(data=pm..predicts.dist2jetty,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-		theme_bw()
-		
-	pm..predicts.distcmg<-as.data.frame(ggpredict(pm,terms='standard.dist2shore[all]',type='fixed'))
-	pm.plot2<- ggplot()+
-		geom_point(data=pointdata, aes(x=standard.dist2shore, y=standard.press,xmin=min(pointdata$standard.dist2shore),xmax=max(standard.dist2shore,ymin=min(pointdata$standard.press),ymax=max(pointdata$standard.press))),pch=21,col='#3a6c74')+
-		ylab('Predation Pressure (standardised)')+xlab('Dist. to Shore (standardised)')+
-		geom_line(data=pm..predicts.distcmg,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-		geom_ribbon(data=pm..predicts.distcmg,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-		theme_bw()
-
-
-	pm..predicts.depth<-as.data.frame(ggpredict(pm,terms='standard.depth[all]',type='fixed'))
-	pm.plot3<- ggplot()+
-		geom_point(data=pointdata, aes(x=standard.depth, y=standard.press,xmin=min(pointdata$standard.depth),xmax=max(standard.depth)),pch=21,col='#3a6c74')+
-		ylab('Predation Pressure (standardised)')+xlab('Depth (standardised)')+
-		geom_line(data=pm..predicts.depth,aes(x=x,y=predicted),col='#3a6c74',size=.6,linetype=1)+
-		geom_ribbon(data=pm..predicts.depth,aes(x=x,ymin=conf.low,ymax=conf.high),alpha=0.3, fill='#3a6c74')+
-		theme_bw()
-
-	## you have to calculate and plot the interaction terms differently. ggpredict puts the first term on the x-axis and then shows the second term at representative values - here three: the mean, and +- a SD unit 
-	
-	pm..predicts.intx.dist2.shore.cmg<-as.data.frame(ggpredict(pm,terms=c("standard.depth", "standard.dist2jetty"),type='fixed'))
-	
-	intx.col.pm <- c('#3a6c74','#708d8e','#3cbcfc')
-	pm.plot4<-
-	ggplot()+
-		geom_line(data=pm..predicts.intx.dist2.shore.cmg,aes(x=x,y=predicted, group=group, col=group),size=.6,linetype=1)+
-		scale_color_manual(values=intx.col.pm,name='Levels')+
-		geom_ribbon(data=pm..predicts.intx.dist2.shore.cmg,aes(group=group,x=x,ymin=conf.low,ymax=conf.high,fill=group),alpha=0.3)+		
-		scale_fill_manual(values=intx.col.pm,name='Levels')+
-		ylab('Predation Pressure (standardised)')+
-		xlab('Depth (standardised)')+
-		theme_bw()+
-		theme(legend.position='bottom')
-
-
-	# put them together in a box
-	pm.prediction.plots.formatted <- (pm.plot1 + pm.plot2)/(pm.plot3 + pm.plot4)
-
-	ggsave(pm.prediction.plots.formatted,file='hypotesting_dredge_results/seescapescolortheme_largesharks_metricGLM_fromDredge_fourplots_predictions.png',device='png',units='in',dpi=350,height=6,width=7)
-
-
-
-	## alternative formatting - 3 columns, four rows
-
-	all.in.one.3col.4rows <- (sgm.plot1 / sgm.plot2 / sgm.plot3 / sgm.plot4) |	(fm.plot1 / fm.plot2 / fm.plot3 / fm.plot4) | 	(pm.plot1 / pm.plot2 / pm.plot3 / pm.plot4)
-
-	ggsave(all.in.one.3col.4rows,file='hypotesting_dredge_results/seescapescolortheme_diffformatting_allin1_fishSGlargesharks_fromDredge_predictions.png',device='png',units='in',dpi=500,height=10,width=8.5)
-
-  ## QQ plots 
-
-	sgm.preds<-as.data.frame(predict(sgm))%>%rename(preds='predict(sgm)')
-	fm.preds<-as.data.frame(predict(fm))%>%rename(preds='predict(fm)')
-	pm.preds<-as.data.frame(predict(pm))%>%rename(preds='predict(pm)')
-
-	sgm.qq <- ggplot(data=sgm.preds, aes(sample = preds))+
-		stat_qq(size=1,pch=21)+
-		labs(title='Seagrass PCA, Best Dredged Model', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
-		stat_qq_line(linetype=2, col='red')+
-		theme_bw()
-		sgm.qq
-		ggsave(sgm.qq,file = 'resource_chp3/hypotesting_dredge_results/quantilequantile_plot_sgm.png', dpi=850, unit= 'in', height = 4, width = 4)
-
-	fm.qq <- ggplot(data=fm.preds, aes(sample = preds))+
-		stat_qq(size=1,pch=21)+
-		labs(title='Prey Metric, Best Dredged Model', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
-		stat_qq_line(linetype=2, col='red')+
-		theme_bw()
-		fm.qq
-		ggsave(fm.qq,file = 'resource_chp3/hypotesting_dredge_results/quantilequantile_plot_fm.png', dpi=850, unit= 'in', height = 4, width = 4)
-
-	pm.qq <- ggplot(data=pm.preds, aes(sample = preds))+
-		stat_qq(size=1,pch=21)+
-		labs(title='Predation Pressure, Best Dredged Model', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
-		stat_qq_line(linetype=2, col='red')+
-		theme_bw()
-		pm.qq
-		ggsave(pm.qq,file = 'resource_chp3/hypotesting_dredge_results/quantilequantile_plot_pm.png', dpi=850, unit= 'in', height = 4, width = 4)
-
-
-
-	##############################################
-	## Table: pathway description, estimates, CI and Support ##
-	##############################################
-		
-		## For local macbook
-		samplesList3b <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
-
-		## For R Server
-		pacman::p_load(tidybayes,bayesplot,MCMCvis,ggdist,nlist,forcats,patchwork)
-		pacman::p_load(MCMCvis)
-		
-		samplesList3b <- readRDS('~/resource/data_and_RDS_NOTforupload/mcmcsamples_model3b_niter10000_burn2000_chains3_4dec2023.RDS')
-		##
-		
-
-		samplesList3b %>% filter(Rowname=='path')
-		
-		
-
-		pathwayresults_table <- MCMCsummary(samplesList3b,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
-				tibble::rownames_to_column()%>%
-				rename_with(str_to_title)%>%
-			rename('pg0'='P>0')%>%
-		  	mutate(pg00 = case_when(Mean > 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
-			arrange(-pg00)%>%
-			rename(Pathway = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
-			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
-			mutate(Estimate = round(Estimate, 3))%>%
-			mutate(lower = case_when(Path != 1 ~ round(lower,3), Path == 1 ~ round(lower,5)),upper = case_when(Path != 1 ~ round(upper,3), Path == 1 ~ round(upper,5)))%>%
-			mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
-			mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
-			mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
-			dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
-			flextable()%>%
-				compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
-				compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Predator Pressure'))%>%
-				compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
-				compose(i=4,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Jetty'))%>%
-				theme_zebra()%>%
-				align(j=3:4, align = 'center', part = 'all')%>%
-				font(fontname = 'Arial', part = 'all')%>%
-				color(color='black',part='all')%>%
-				fontsize(size = 10, part = 'all')%>%
-				autofit()
-		pathwayresults_table
-
-		save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model3b_niter20000_burn2000_chains3_4dec2023.png')	
 
 
 
