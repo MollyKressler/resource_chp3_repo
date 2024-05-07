@@ -98,8 +98,8 @@ stopifnot(nrow(hexdata)==2663) # check
 ##################################################################
 ##################################################################
     
-    #####################	
-    ## - MODEL4:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure
+#####################	
+## - MODEL4:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure
     
     modelCode4<-nimbleCode({
       
@@ -757,167 +757,167 @@ stopifnot(nrow(hexdata)==2663) # check
 	head(samplesList3b$chain1)
 	str(samplesList3b)
 
-## Make test sample data frames - based on the hexagon df
+  ## Make test sample data frames - based on the hexagon df
 
-	hexsamp <- hexdata %>%
-		sample_n(5)%>%
-		as.data.frame() 
-
-
-## From model4 samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
-	# path 2: j4, c3, a1
-	j4.ch<-c(samplesList4$chain1[,22],samplesList4$chain2[,22],samplesList4$chain3[,22])
-	c3.ch<-c(samplesList4$chain1[,11],samplesList4$chain2[,11],samplesList4$chain3[,11])
-	a1.ch<-c(samplesList4$chain1[,1],samplesList4$chain2[,1],samplesList4$chain3[,1])
-
-	# path 3: e1, e2, e3, e4, e5, a7
-	e1.ch <-c(samplesList4$chain1[,14], samplesList4$chain2[,14],samplesList4$chain3[,14] )
-	e2.ch <-c(samplesList4$chain1[,15], samplesList4$chain2[,15],samplesList4$chain3[,15] )
-	e3.ch <-c(samplesList4$chain1[,16], samplesList4$chain2[,16],samplesList4$chain3[,16] )
-  e4.ch <-c(samplesList4$chain1[,17], samplesList4$chain2[,17],samplesList4$chain3[,17] )
-  e5.ch <-c(samplesList4$chain1[,18], samplesList4$chain2[,18],samplesList4$chain3[,18] )
-	a7.ch <-c(samplesList4$chain1[,7], samplesList4$chain2[,7],samplesList4$chain3[,7] )
-
-## Run loops for each path, to calculate path estimate given a hexagon cell
-
-	## Variable-Coefficient key
-		# j4 = dist2shore * distcmg
-		# c3 = seagrasses
-		# a1 = fish
-		# e1 = dist2shore
-		# e2 = depth
-		# e3 = dist2jetty
-    # e4 = distcmg
-		# e5 = dist2jetty*depth
-		# a7 = predator pressure
-
-	## Define size of objects/matrices
-	J = 3 * 8000 # chains x iterations
-	n.hex = nrow(hexdata)	
-
-	## set up prediction df
-
-		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
-		head(preds.path2)
-
-		preds.path3 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
-		head(preds.path3)
+  	hexsamp <- hexdata %>%
+  		sample_n(5)%>%
+  		as.data.frame() 
 
 
-	## write progress bar function
-		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
+  ## From model4 samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
+  	# path 2: j4, c3, a1
+  	j4.ch<-c(samplesList4$chain1[,22],samplesList4$chain2[,22],samplesList4$chain3[,22])
+  	c3.ch<-c(samplesList4$chain1[,11],samplesList4$chain2[,11],samplesList4$chain3[,11])
+  	a1.ch<-c(samplesList4$chain1[,1],samplesList4$chain2[,1],samplesList4$chain3[,1])
 
-	## path 2 loop
-		for(i in 1:n.hex){
-		  for(j in 1:J){
-		    preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
-		  } 
-		  	setTxtProgressBar(pb, i)
-		}
-	
-	## path 3 loop
-	for(i in 1:n.hex){
-		setTxtProgressBar(pb, i)
-		for(j in 1:J){
-			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i])+ (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
-		}
-	};beep(3)
+  	# path 3: e1, e2, e3, e4, e5, a7
+  	e1.ch <-c(samplesList4$chain1[,14], samplesList4$chain2[,14],samplesList4$chain3[,14] )
+  	e2.ch <-c(samplesList4$chain1[,15], samplesList4$chain2[,15],samplesList4$chain3[,15] )
+  	e3.ch <-c(samplesList4$chain1[,16], samplesList4$chain2[,16],samplesList4$chain3[,16] )
+    e4.ch <-c(samplesList4$chain1[,17], samplesList4$chain2[,17],samplesList4$chain3[,17] )
+    e5.ch <-c(samplesList4$chain1[,18], samplesList4$chain2[,18],samplesList4$chain3[,18] )
+  	a7.ch <-c(samplesList4$chain1[,7], samplesList4$chain2[,7],samplesList4$chain3[,7] )
 
-	## save calculations
-    saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
-    saveRDS(preds.path2,'resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+  ## Run loops for each path, to calculate path estimate given a hexagon cell
 
-## Calculate marginal means, and HDI (highest density intervals)
+    	## Variable-Coefficient key
+    		# j4 = dist2shore * distcmg
+    		# c3 = seagrasses
+    		# a1 = fish
+    		# e1 = dist2shore
+    		# e2 = depth
+    		# e3 = dist2jetty
+        # e4 = distcmg
+    		# e5 = dist2jetty*depth
+    		# a7 = predator pressure
 
-	## deprecated and inaccurate way to calculate HDIs - HDInterval::hdi needs values in columns. 
+    	## Define size of objects/matrices
+    	J = 3 * 8000 # chains x iterations
+    	n.hex = nrow(hexdata)	
 
-		mean(as.numeric(preds.path3[1,]))
+    	## set up prediction df
 
-		cols <- c('jcode','mean', 'lower', 'upper')
-		p2pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
-		p3pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
-		colnames(p2pred) = cols
-		colnames(p3pred) = cols
-		p2pred$jcode <- as.character(hexdata$jcode)
-		p3pred$jcode <- as.character(hexdata$jcode)
-		head(p2pred)
+    		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
+    		head(preds.path2)
 
-		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
-		
-		for(i in 1:n.hex){
-			p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
-			p2pred[i,3] <- hdi(preds.path2[i,])[2]
-			p2pred[i,4] <- hdi(preds.path2[i,])[1]
-			setTxtProgressBar(pb, i)
-			p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
-			p3pred[i,3] <- hdi(preds.path3[i,])[2]
-			p3pred[i,4] <- hdi(preds.path3[i,])[1]
-		};beep(3)
-
-		head(p2pred)
-		nrow(p2pred)
-		head(p3pred)
-
-	## Updated approach: 5 March 2024
-	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
-	p3 <- readRDS('resource_chp3//path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
-	
-  hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%mutate(jcode=as.character(jcode))
-    head(hexdata)
-
-	## re-format data
-	dat.p2 <- as.matrix(p2)
-	dat.p2<-dat.p2[,-1]
-	dat.p2[1:10,1:10]
-	dim(dat.p2)[2]
-			# rowMeans(dat)[1]
-			# mean(dat[1,])
-			# hdi(dat[1,])[1]
-
-	out.p2 <- data.frame(
-		  Index = rep(0,dim(dat.p2)[1]),
-		  Mean = rep(0,dim(dat.p2)[1]),
-		  Low = rep(0,dim(dat.p2)[1]),
-		  Upp = rep(0,dim(dat.p2)[1]))
-
-	dat.p3 <- as.matrix(p3)
-	out.p3 <- data.frame(
-		  Index = rep(0,dim(dat.p3)[1]),
-		  Mean = rep(0,dim(dat.p3)[1]),
-		  Low = rep(0,dim(dat.p3)[1]),
-		  Upp = rep(0,dim(dat.p3)[1]))
+    		preds.path3 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
+    		head(preds.path3)
 
 
-	## calculate means and HDIs for each hexagon
-	for(i in 1:dim(dat.p2)[1]){
-		  out.p2$Index[i] = i
-		  out.p2$Mean[i] = mean(dat.p2[i,])
-		  out.p2$Low[i] = HDInterval::hdi(dat.p2[i,])[1]
-		  out.p2$Upp[i] = HDInterval::hdi(dat.p2[i,])[2]
-		  }
-  	head(out.p2)
-	
-	for(i in 1:dim(dat.p3)[1]){
-		  out.p3$Index[i] = i
-		  out.p3$Mean[i] = mean(dat.p3[i,])
-		  out.p3$Low[i] = HDInterval::hdi(dat.p3[i,])[1]
-		  out.p3$Upp[i] = HDInterval::hdi(dat.p3[i,])[2]
-		  }
-  	head(out.p3)
+    	## write progress bar function
+    		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
 
-  	## attach jcodes back 
-  	out.p2 <- cbind(hexdata%>%dplyr::select('jcode'), out.p2)%>%
-  		dplyr::select(-Index)
-  	head(out.p2)
+    	## path 2 loop
+    		for(i in 1:n.hex){
+    		  for(j in 1:J){
+    		    preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
+    		  } 
+    		  	setTxtProgressBar(pb, i)
+    		}
+    	
+    	## path 3 loop
+    	for(i in 1:n.hex){
+    		setTxtProgressBar(pb, i)
+    		for(j in 1:J){
+    			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i])+ (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
+    		}
+    	};beep(3)
+
+    	## save calculations
+        saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+        saveRDS(preds.path2,'resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+
+  ## Calculate marginal means, and HDI (highest density intervals)
+
+  	## deprecated and inaccurate way to calculate HDIs - HDInterval::hdi needs values in columns. 
+
+  		mean(as.numeric(preds.path3[1,]))
+
+  		cols <- c('jcode','mean', 'lower', 'upper')
+  		p2pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
+  		p3pred <- as.data.frame(matrix(ncol=4, nrow = n.hex))
+  		colnames(p2pred) = cols
+  		colnames(p3pred) = cols
+  		p2pred$jcode <- as.character(hexdata$jcode)
+  		p3pred$jcode <- as.character(hexdata$jcode)
+  		head(p2pred)
+
+  		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
+  		
+  		for(i in 1:n.hex){
+  			p2pred[i,2] <- mean(as.numeric(preds.path2[i,]))
+  			p2pred[i,3] <- hdi(preds.path2[i,])[2]
+  			p2pred[i,4] <- hdi(preds.path2[i,])[1]
+  			setTxtProgressBar(pb, i)
+  			p3pred[i,2] <- mean(as.numeric(preds.path3[i,]))
+  			p3pred[i,3] <- hdi(preds.path3[i,])[2]
+  			p3pred[i,4] <- hdi(preds.path3[i,])[1]
+  		};beep(3)
+
+  		head(p2pred)
+  		nrow(p2pred)
+  		head(p3pred)
+
+  	## Updated approach: 5 March 2024
+  	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+  	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
   	
-  	out.p3 <- cbind(hexdata%>%dplyr::select('jcode'), out.p3)%>%
-  		dplyr::select(-Index)
-  	head(out.p3)
+    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%mutate(jcode=as.character(jcode))
+      head(hexdata)
 
-## Save path estimates and path means + HDI dfs
+  	## re-format data
+  	dat.p2 <- as.matrix(p2)
+  	dat.p2<-dat.p2[,-1]
+  	dat.p2[1:10,1:10]
+  	dim(dat.p2)[2]
+  			# rowMeans(dat)[1]
+  			# mean(dat[1,])
+  			# hdi(dat[1,])[1]
 
-	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')
-	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')
+  	out.p2 <- data.frame(
+  		  Index = rep(0,dim(dat.p2)[1]),
+  		  Mean = rep(0,dim(dat.p2)[1]),
+  		  Low = rep(0,dim(dat.p2)[1]),
+  		  Upp = rep(0,dim(dat.p2)[1]))
+
+  	dat.p3 <- as.matrix(p3)
+  	out.p3 <- data.frame(
+  		  Index = rep(0,dim(dat.p3)[1]),
+  		  Mean = rep(0,dim(dat.p3)[1]),
+  		  Low = rep(0,dim(dat.p3)[1]),
+  		  Upp = rep(0,dim(dat.p3)[1]))
+
+
+  	## calculate means and HDIs for each hexagon
+  	for(i in 1:dim(dat.p2)[1]){
+  		  out.p2$Index[i] = i
+  		  out.p2$Mean[i] = mean(dat.p2[i,])
+  		  out.p2$Low[i] = HDInterval::hdi(dat.p2[i,])[1]
+  		  out.p2$Upp[i] = HDInterval::hdi(dat.p2[i,])[2]
+  		  } # takes a beat
+    	head(out.p2)
+  	
+  	for(i in 1:dim(dat.p3)[1]){
+  		  out.p3$Index[i] = i
+  		  out.p3$Mean[i] = mean(dat.p3[i,])
+  		  out.p3$Low[i] = HDInterval::hdi(dat.p3[i,])[1]
+  		  out.p3$Upp[i] = HDInterval::hdi(dat.p3[i,])[2]
+  		  } # takes a beat
+    	head(out.p3)
+
+    	## attach jcodes back 
+    	out.p2 <- cbind(hexdata%>%dplyr::select('jcode'), out.p2)%>%
+    		dplyr::select(-Index)
+    	head(out.p2)
+    	
+    	out.p3 <- cbind(hexdata%>%dplyr::select('jcode'), out.p3)%>%
+    		dplyr::select(-Index)
+    	head(out.p3)
+
+  ## Save path estimates and path means + HDI dfs
+
+  	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')
+  	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')
 
 ##################################################
 ## Path inference diagnostics ##
@@ -960,7 +960,6 @@ stopifnot(nrow(hexdata)==2663) # check
 	pacman::p_load(sf, ggplot2, patchwork,tidyverse)
   
   hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
-      dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
       rename(standard.hexshark = stndrd_hxs,
         standard.hexfish = stndrd_hxf,
         standard.hexdist2shore = stndrd_h2,
@@ -970,7 +969,6 @@ stopifnot(nrow(hexdata)==2663) # check
         standard.dist2jetty = stndrd_d2,
         standard.depth = stndrd_d,
         standard.sgPCA1 = st_PCA1,
-        logit.sqzrisk = lgt_sqz,
         zlogit.sqzrisk = zlgt_sq,
         relPropPD = rlPrpPD
         )
@@ -990,7 +988,8 @@ stopifnot(nrow(hexdata)==2663) # check
 	## join spatial geomtry by jcode to preds
 		p2.sf <- st_as_sf(left_join(hexsf, p2pred, by='jcode'))%>%
 		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-		p2.sf.cropped <- st_as_sf(left_join(hexsf2, p2pred, by='jcode'))%>%
+		
+    p2.sf.cropped <- st_as_sf(left_join(hexsf2, p2pred, by='jcode'))%>%
 		  dplyr::select(jcode, Mean, Low, Upp, geometry)
 		
 		p2.southerninset <- st_as_sf(left_join(southerninset, p2pred, by='jcode'))%>%
@@ -1010,7 +1009,7 @@ stopifnot(nrow(hexdata)==2663) # check
   colours = c('#ffffff', '#666282','#3a6c74','#143B43')
   colours.diff = c('#d2c9cf','#a097a6','#858093','#696b81','#4c566e','#2d435a','#063146') 
 	
-	scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.6),show.limits = TRUE, labels=scales::label_number(accuracy=0.1))+
+	 #scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.6),show.limits = TRUE, labels=scales::label_number(accuracy=0.1))+
 
 
 	p2.mean <- ggplot()+
@@ -1026,7 +1025,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Lower HDI')+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	  	theme(axis.text.x = element_text(angle=45, hjust = 1),legend.direction = "horizontal", legend.position = "bottom")
 	p2.lower
 
 	p2.upper <- ggplot()+
@@ -1034,7 +1033,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Upper HDI')+
 	  theme_bw()+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	  	theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")
   p2.upper
   
     ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
@@ -1057,21 +1056,22 @@ stopifnot(nrow(hexdata)==2663) # check
 
       
 	## path 3 plots - mean, upper, lower 
-
+      summary(p2.sf)
 	p3.mean <- ggplot()+
 		geom_sf(data = p3.sf, aes(fill = Mean), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Mean')+
 	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
-	  p3.mean
+	 ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+ 
 
 	p3.lower <- ggplot()+
 		geom_sf(data = p3.sf, aes(fill = Low), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Lower')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1))
+	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")
 	 p3.lower
 
 	p3.upper <- ggplot()+
@@ -1079,7 +1079,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Upper')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1))
+	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")
     p3.upper
 
 	  ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
@@ -1096,23 +1096,30 @@ stopifnot(nrow(hexdata)==2663) # check
  		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
         theme_bw()+
-        theme(axis.text.x = element_text(angle=45, hjust = 1))
+        theme(axis.text.x = element_text(angle=45, hjust = 1),)
       p3.lower.diff
 
 
 	## various arrangements for pub
 		## just the means, side by side
-		means.. <- p2.mean + p3.mean + plot_layout(guides = 'collect', axes = 'collect')
-			pacman::p_load(wrap_plots)
-			means. <- list(p2.mean, p3.mean)
-		means.. <- wrap_plots(means., axes = 'collect_y', guides = 'collect')
+		p3mean.noyaxis <- p3.mean + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+    
+    means.. <- p2.mean + p3mean.noyaxis + plot_layout(guides = 'collect')
+    means..
+
+    p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+    p2upper.noyaxis <- p2.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+
+    p2.hdis.wide.axescollected <- p2.lower + p2upper.noyaxis 
+    p3.hdis.wide.axescollected <- p3.lower + p3upper.noyaxis 
+
 
 		## means with their HDIs, horizontal
-		p2.mean.hdis.wide <- p2.mean + p2.lower + p2.upper 
-		p3.mean.hdis.wide <- p3.mean + p3.lower + p3.upper 
+    p3lower.noyaxis <- p3.lower + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+    p2lower.noyaxis <- p2.lower + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
 
-		p2.hdis.wide <- p2.lower + p2.upper 
-		p3.hdis.wide <- p3.lower + p3.upper 
+    p2.mean.hdis.wide <- p2.mean + p3lower.noyaxis + p2upper.noyaxis 
+		p3.mean.hdis.wide <- p3.mean + p2lower.noyaxis + p3upper.noyaxis 
 		
 		## means with their HDIs, stacked
 		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper 
@@ -1133,48 +1140,31 @@ stopifnot(nrow(hexdata)==2663) # check
 
 	  ## save plots 
 	  ##### path 2 plots
-		ggsave(p2.mean, file = 'resource_chp3/path_inference/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.lower, file = 'resource_chp3/path_inference/path2_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.upper, file = 'resource_chp3/path_inference/path2_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.mean.hdis.wide, file = 'resource_chp3/path_inference/path2_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
-		ggsave(p2.mean.hdis.long, file = 'resource_chp3/path_inference/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
-		ggsave(p2.mean.diffshdis.square, file = 'resource_chp3/path_inference/path2_mean_and_diffHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_and_UppandLowHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(diffmean.p2, file = 'resource_chp3/path_inference/path2_mean_and_UpperLowerHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 8)
-		ggsave(p2.lower.diff, file = 'resource_chp3/path_inference/path2_LowerHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.upper.diff, file = 'resource_chp3/path_inference/path2_UpperHDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.hdis.wide, file = 'resource_chp3/path_inference/path2_HDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8)
+		ggsave(p2.mean, file = 'resource_chp3/path_inference/path2_mean_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.lower, file = 'resource_chp3/path_inference/path2_lowerHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.upper, file = 'resource_chp3/path_inference/path2_upperHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p2.mean.hdis.wide, file = 'resource_chp3/path_inference/path2_mean_andHDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
+		ggsave(p2.mean.hdis.long, file = 'resource_chp3/path_inference/path2_mean_andHDI_LONGpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
+		ggsave(p2.mean.diffshdis.square, file = 'resource_chp3/path_inference/path2_mean_and_diffHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p2.mean.hdis.square, file = 'resource_chp3/path_inference/path2_mean_and_UppandLowHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p2.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path2_HDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 9)
 
 	  ####### path 3 plots 
  
- 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p3.upper, file = 'resource_chp3/path_inference/path3_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
-		ggsave(p3.mean.hdis.long, file = 'resource_chp3/path_inference/path3_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
-		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
- 		ggsave(p3.hdis.wide, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8)
+ 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p3.upper, file = 'resource_chp3/path_inference/path3_upperHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
+		ggsave(p3.mean.hdis.long, file = 'resource_chp3/path_inference/path3_mean_andHDI_LONGpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
+		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
+ 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8.5)
 
 		
- 		ggsave(means.., file = 'resource_chp3/path_inference/path2_and_path3_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 7)
+ 		ggsave(means.., file = 'resource_chp3/path_inference/path2_and_path3_mean_estimates_spatial_forpubs_collectedaxes_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 7)
 
 
-		
-	## save on Server
-		ggsave(p2.mean, file = 'figures_and_tables/path2_mean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.lower, file = 'figures_and_tables/path2_lowerHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.upper, file = 'figures_and_tables/path2_upperHDI_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.mean.hdis.wide, file = 'figures_and_tables/path2_mean_andHDI_WIDEpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
-		ggsave(p2.mean.hdis.long, file = 'figures_and_tables/path2_mean_andHDI_LONGpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
-		ggsave(p2.mean.hdis.square, file = 'figures_and_tables/path2_mean_andHDI_SQUAREpanel_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(p2.lower.diff, file = 'figures_and_tables/path2_lowerHDI_differencefromMean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p2.upper.diff, file = 'figures_and_tables/path2_upperHDI_differencefromMean_estimates_spatial_feb24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		
-		
-		
-
-
+	
 
 
