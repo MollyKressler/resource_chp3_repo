@@ -99,10 +99,11 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data=cmg,pch=23,size=4,col='#FFFFFF',fill='#032D59')+
 		geom_sf(data = jettys, pch = 24, size = 2, col='goldenrod1',fill='goldenrod1')+
 		theme_bw()+ 
-		theme(axis.text.x = element_text(angle = 90), legend.position = c(.75,0.17))
+		theme(axis.text.x = element_text(angle = 90), legend.position = c(.75,0.17))+
+		theme_void()
 	winter2020map
 		# save
-		ggsave(winter2020map,file='habbimini2020_emilycourmier_seagrasses_urban_vegetated.png',device='png',unit='in',height=8,width=8,dpi=650)
+		ggsave(winter2020map,file='habbimini2020_themevoid_emilycourmier_seagrasses_urban_vegetated.png',device='png',unit='px',height=1080,dpi=150)
 
 
 ###################
@@ -226,7 +227,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ##############################################
 	
 	## For local macbook
-	samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
+	samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter20000_burn12000_chains3_4may2024.RDS')
 
 
 	pathwayresults_table <- MCMCsummary(samplesList4,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
