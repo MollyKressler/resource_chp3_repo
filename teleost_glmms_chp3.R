@@ -12,76 +12,37 @@
 
 # colors for figures: by season, wet = cadetblue3 and dry = tomato4
 
-pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effects,forcats,gbm3)
+pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effects,forcats,gbm3, dismo)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/')
 
 
-
 ############ ############ ############ ############ ############ 
-# BRTS - updated August 2023 (new hab data) & June 2024 (Driscoll BRUVs only), copy and pasted from before
+# BRTS - updated August 2023 (new hab data) & June 2024 (Driscoll BRUVs only) & July 2024 (publically available 2014 and Driscoll 2018 with updated habitat specific to sampling year), copy and pasted from before
 ############ ############ ############ ############ ############ 
 
-pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn,lme4,effects,forcats,gbm3, dismo)
-	
-	joined_df<-read.csv('bruvs_data_SarahDriscollonly_joinedWITHhabitat_winter2020EChabitat_june24.csv')%>%
-		rename(SW_Species = SW_Spcs, Gerreidae = Gerreid, prop_veg = prp_vgg, prop_urb_r = prp_brr, dist2shore = dst2shr)
-	joined_df$BRUV<-as.factor(joined_df$BRUV)
-	joined_df$Season<-as.factor(joined_df$Season)
-	joined_df$SW_Species<-as.numeric(joined_df$SW_Species)
+	n <-read.csv('bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.csv')
+	n
+
 
 ## RUN MODELS (or READ IN model objects)
 ## use gbm.step() to both cross validate the number of trees to use, and then run that model. 
-	# update June 2024: don't run Families, we'll stick to species and Gerries
+	# Poisson because count data
 
-	# deprecated - SW Families 
-		sw_families1<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Species'),tree.complexity=9,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 1500 trees, resid dev 0.208
-		sw_families2<-gbm.step(joined_df,gbm.x=c('Season','prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('SW_Families'),tree.complexity=3,learning.rate=0.001,bag.fraction=0.75,family='gaussian',plot.main = TRUE) # 750 trees, resid dev= 0.113
-		names(sw_families1)
-		summary(sw_families1)
-		summary(sw_families2)
-		plot(sw_families2$residuals)
-		saveRDS(sw_families1,'resource_chp3/model_RDS/SW_Families_brt_tc9_lr001_gaussian_aug23.RDS')
-		saveRDS(sw_families2,'resource_chp3/model_RDS/SW_Families_brt_tc3_lr001_gaussian_aug23.RDS')
-		# SW species 
-		sp1<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=5,learning.rate=0.001,bag.fraction=0.5,family='gaussian',plot.main = TRUE) # 13.5 resid dev, 800 trees
 
-		sp2<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=2,learning.rate=0.0001,bag.fraction=0.5,family='gaussian',plot.main = TRUE) # 14.06, 6350 trees - this one is better. 
+	n1 <-gbm.step(n,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y='maxN',tree.complexity=2,learning.rate=0.001,bag.fraction=0.95,family='poisson',plot.main = TRUE)  ## resid dev 16.4, 3700 trees
+	
+	summary(n1)
 
-		summary(sp1) # plots, and tables, the influence of each variable. 
-saveRDS(sp1,'resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.RDS')
+	saveRDS(n1,'resource_chp3/model_RDS/maxN_gbm_poisson_july2024.RDS')
+
+
+	## DEPRECATED - Species richness is also count data so also needs a poisson
+		rich2<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=5,learning.rate=0.0001,bag.fraction=0.95,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 1750 trees, NO Season.
+		rich1<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=5,learning.rate=0.0001,bag.fraction=0.5,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 4050 trees, NO Season.
 		
+		#rich3<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=2,learning.rate=0.0001,bag.fraction=0.5,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 4050 trees, NO Season.
 
-	# Gerreidae - 27 February 2023 - as gamma distributed. Gamma distributions don't allow for zeros, so add a constant to all data points for Gerreidae. You also have to use the github version of gbm to access this update (to run a gamma distribution)
-	
-		# gbm.step is from dismo. 
-		# need to use gbm function from gbm3/gbm to use gamma distribution
-
-	#library('devtools')
-	install_github("gbm-developers/gbm3"), have nstalled before so should only need to load with pacman
-
-	pacman::p_load(gbm3)
-
-	joined_df<-joined_df%>%mutate(Gerr_Gamma=Gerreidae+0.01, rich_Gamma=spp_rch+0.01)
-
-	hist(joined_df$Gerr_Gamma)
-
-	## trying a Poisson - it is count data, and gmb/gbm3 has capacity. 
-	gerrPoisson2<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('Gerreidae'),tree.complexity=3,learning.rate=0.0001,bag.fraction=0.95,family='poisson',plot.main = TRUE)  ## resid dev 3.7, 1600 trees, NO Season.
-	
-		## looks awful, but its what I meant with before and it runs
-
-	summary(gerrPoisson2)
-
-	saveRDS(gerrPoisson2,'resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
-
-
-	## Species richness is also count data so also needs a poisson
-	rich2<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=5,learning.rate=0.0001,bag.fraction=0.95,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 1750 trees, NO Season.
-	rich1<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=5,learning.rate=0.0001,bag.fraction=0.5,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 4050 trees, NO Season.
-	
-	#rich3<-gbm.step(joined_df,gbm.x=c('prp_lds','prp_mds','prp_hds','dist2shore'),gbm.y=c('spp_rch'),tree.complexity=2,learning.rate=0.0001,bag.fraction=0.5,family='poisson',plot.main = TRUE)  ## resid dev 1.8, 4050 trees, NO Season.
-
-	saveRDS(rich3,'resource_chp3/model_RDS/Species_Rchness_Poisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
+		saveRDS(rich3,'resource_chp3/model_RDS/Species_Rchness_Poisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
 
 
 
@@ -100,17 +61,54 @@ saveRDS(sp1,'resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.R
 
 
 	# read in model objects 
-		richfull <- readRDS('resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.RDS')
-		gerrfull <- readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
+		n1 <- readRDS('resource_chp3/model_RDS/maxN_gbm_poisson_july2024.RDS')
+
 		# deprecated
+			richfull <- readRDS('resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.RDS')
+			gerrfull <- readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
 			sppfull<-readRDS('resource_chp3/model_RDS/SW_Species_brt_tc3_lr001_gaussian_aug23.RDS')
 			famfull<-readRDS('resource_chp3/model_RDS/SW_Families_brt_tc9_lr001_gaussian_aug23.RDS')
 			gerrfull<-readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_aug23.RDS')
-
+##########
 ## EVALUATE MODELS
 # extract the data on relative influence of each variable. and plot it. 
 	hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
-	# Gerr 
+	# maxN 
+		infl.n<-n1$contributions
+		n.relinf<-infl.n%>%
+			mutate(var=fct_reorder(var,rel.inf))%>%
+			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+				geom_bar(stat='identity')+
+				scale_fill_distiller(direction=1,palette='Oranges',limits=c(15,35),guide='none')+
+				theme_bw()+
+				coord_flip()+
+				scale_x_discrete(labels=hab.labels)+
+				ylab('Relative Influence')+
+				xlab(NULL)	
+		ggsave(n.relinf,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/relative_influence_vars_maxN_july2024.png',device='png',units='in',height=6,width=8,dpi=900)
+		
+		res_n1 <- as_tibble(resid(n1))%>%rename(resids = value)
+		F1 <- as_tibble(predict(n1))%>%rename(fitted = value)
+		diag_n1 <- bind_cols(F1, res_n1)
+
+		resVfit_n1 <- ggplot(data = diag_n1,aes(x= fitted, y = resids))+
+			geom_point()+ 
+			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
+			theme_bw()
+		res_n1_hist <- ggplot(data = res_n1, aes(x = resids))+ 
+			geom_histogram(binwidth = nrow(res_n1)/100,fill = 'black')+ 
+			theme_bw()+
+			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
+		res_n1_qq <- ggplot(data=F1, aes(sample = fitted))+
+			stat_qq(size=1,pch=21)+
+			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+			stat_qq_line(linetype=2, col='red')+
+			theme_bw()
+
+		diagnostics_n1 <- resVfit_n1+res_n1_hist+res_n1_qq
+		
+		ggsave(diagnostics_n1, file = 'resource_chp3/BRTS_outputs/BRT_maxN_july2024/diagnostics_BRT_maxN_july2024.png', device = 'png', unit = 'in', height = 4, width = 8, dpi = 850)	
+	# deprecated - Gerr 
 		infl.gerr<-gerrfull$contributions
 		gerr.relinf<-infl.gerr%>%
 			mutate(var=fct_reorder(var,rel.inf))%>%
@@ -123,7 +121,7 @@ saveRDS(sp1,'resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.R
 				ylab('Relative Influence')+
 				xlab(NULL)	
 		ggsave(gerr.relinf,file='resource_chp3/figures+tables/BRT_gerreidae_jun24/relative_influence_vars_in_GerreidaeBRT_jun24.png',device='png',units='in',height=6,width=8,dpi=900)
-	# Richness
+	# deprecated - Richness
 		infl.rich<-richfull$contributions
 		rich.relinf<-infl.rich%>%
 			mutate(var=fct_reorder(var,rel.inf))%>%
@@ -136,63 +134,55 @@ saveRDS(sp1,'resource_chp3/model_RDS/spp_richness_brt_tc5_lr001_gaussian_jun24.R
 				ylab('Relative Influence')+
 				xlab(NULL)	
 		ggsave(gerr.relinf,file='resource_chp3/figures+tables/BRT_species_richness_jun24/relative_influence_vars_in_sppRichnessBRT_jun24.png',device='png',units='in',height=6,width=8,dpi=900)
-
-	# SW Species 
-	infl.swsp<-sw_species2$contributions
-	swspp.relinf<-infl.swsp%>%
-		mutate(var=fct_reorder(var,rel.inf))%>%
-		ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
-			geom_bar(stat='identity')+scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,65),guide='none')+
-			theme_bw()+
-			coord_flip()+
-			scale_x_discrete(labels=hab.labels)+
-			ylab('Relative Influence')+
-			xlab(NULL)
-		ggsave(swspp.relinf,file='resource_chp3/figures+tables/BRT_sw_species_feb23/relative_influence_vars_in_SWsppBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
-
-	# SW Families 
-	infl.swf<-sw_families2$contributions
-	swf.relinf<-infl.swf%>%
-		mutate(var=fct_reorder(var,rel.inf))%>%
+	# deprecated - SW Species 
+		infl.swsp<-sw_species2$contributions
+		swspp.relinf<-infl.swsp%>%
+			mutate(var=fct_reorder(var,rel.inf))%>%
 			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
-			geom_bar(stat='identity')+
-			scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
-			theme_bw()+
-			coord_flip()+
-			scale_x_discrete(labels=hab.labels)+ylab('Relative Influence')+
-			xlab(NULL)
-		ggsave(swf.relinf,file='resource_chp3/figures+tables/BRT_sw_families_feb23/relative_influence_vars_in_SWfamiliesBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+				geom_bar(stat='identity')+scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,65),guide='none')+
+				theme_bw()+
+				coord_flip()+
+				scale_x_discrete(labels=hab.labels)+
+				ylab('Relative Influence')+
+				xlab(NULL)
+			ggsave(swspp.relinf,file='resource_chp3/figures+tables/BRT_sw_species_feb23/relative_influence_vars_in_SWsppBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
 
-	# Gerreidae
-	infl.gerr<-gerr2$contributions
-	gerr.relinf<-infl.gerr%>%
-		mutate(var=fct_reorder(var,rel.inf))%>%
-		ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
-			geom_bar(stat='identity')+
-			scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
-			theme_bw()+
-			coord_flip()+
-			scale_x_discrete(labels=hab.labels)+
-			ylab('Relative Influence')+
-			xlab(NULL)	
-	ggsave(gerr.relinf,file='resource_chp3/figures+tables/BRT_gerreidae_feb23/relative_influence_vars_in_GerreidaeBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
+	# deprecated - SW Families 
+		infl.swf<-sw_families2$contributions
+		swf.relinf<-infl.swf%>%
+			mutate(var=fct_reorder(var,rel.inf))%>%
+				ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+				geom_bar(stat='identity')+
+				scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
+				theme_bw()+
+				coord_flip()+
+				scale_x_discrete(labels=hab.labels)+ylab('Relative Influence')+
+				xlab(NULL)
+			ggsave(swf.relinf,file='resource_chp3/figures+tables/BRT_sw_families_feb23/relative_influence_vars_in_SWfamiliesBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
 
-## Predict into sf4pred 
-	{df4preds<-read.csv('winter2020habitat_hexagon_grid_NOland_ECdata.csv')%>%
-			slice(rep(1:n(),each=2))%>%
-			mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
-			df4preds$jcode<-as.factor(df4preds$jcode)
-			df4preds$Season<-as.factor(df4preds$Season)}
-			summary(df4preds)
+	# deprecated - Gerreidae
+		infl.gerr<-gerr2$contributions
+		gerr.relinf<-infl.gerr%>%
+			mutate(var=fct_reorder(var,rel.inf))%>%
+			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
+				geom_bar(stat='identity')+
+				scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,70),guide='none')+
+				theme_bw()+
+				coord_flip()+
+				scale_x_discrete(labels=hab.labels)+
+				ylab('Relative Influence')+
+				xlab(NULL)	
+		ggsave(gerr.relinf,file='resource_chp3/figures+tables/BRT_gerreidae_feb23/relative_influence_vars_in_GerreidaeBRT_aug23.png',device='png',units='in',height=6,width=8,dpi=900)
 
-	{sf4preds<-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')%>%
-			slice(rep(1:n(),each=2))%>%
-			mutate(Season=case_when(row_number()%%2==1 ~'D',.default='W'),.after=jcode)
-			sf4preds$jcode<-as.factor(sf4preds$jcode)
-			sf4preds$Season<-as.factor(sf4preds$Season)}
-			summary(sf4preds)
 
-full.models<-c('richfull','gerrfull')
+##########
+## Before you predict you need to do gbm.simplify - don't go further. 
+
+	df4preds<-read_csv('winter2020habitat_hexagon_grid_NOland_ECdata.csv')
+
+	sf4preds<-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')
+
+full.models<- n1 
 
 for(i in full.models){
 	mod<-get(i)
@@ -222,6 +212,14 @@ for(i in full.models){
 
 
 
+
+
+############ ############ ############ ############ ############ 
+############ ############ ############ ############ ############ 
+############ ############ ############ ############ ############ 
+############ ############CODE GRAVEYARD############ ############ 
+############ ############ ############ ############ ############ 
+############ ############ ############ ############ ############ 
 ############ ############ ############ ############ ############ 
 ## deprecated, pre-August 2023 (see  below for August 2023 updates)
 # DATASETS, load at the start ######## ############ ############ 

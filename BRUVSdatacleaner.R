@@ -66,13 +66,22 @@ h18 <- st_as_sf(st_read('summer2018habitat_hexagon_grid_NOland_ECdata.shp'), crs
 
 
 ######
+## - Calculate MaxN of four Families
+######
+
+	data2 <- data %>%
+		rowwise()%>%
+		mutate(maxN = sum(c_across(2:5), na.rm = TRUE) , .before = 'source')
+	data2
+
+
+######
 ## - Save
 ######
 
+	write_sf(data2,'bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.shp',driver='ESRI Shapefile')
 
-	write_sf(data,'bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.shp',driver='ESRI Shapefile')
-
-	write_sf(data,'bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.shp',driver='CSV')
+	write_sf(data2,'bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.csv',driver='CSV')
 
 
 
