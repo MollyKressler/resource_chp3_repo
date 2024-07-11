@@ -49,12 +49,57 @@
 pacman::p_load(tidyverse,sf,ggplot2,cowplot,patchwork,flextable,sf,ggsn,dismo,gbm)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
-## Load workspace, R Server 
-pacman::p_load(MCMCvis,tidyverse,sf,nimble,devtools,flextable,webshot2,sfdep,sp,spdep,beepr, HDInterval)
-setwd("~/resource/data_and_RDS_NOTforupload")
 
 
+#####################
+### - July 2024: need to take covariates from former finished datsets and spatially join the data to the new BRT predictions. 
+#####################
 
+	pointdata <- read_csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')%>%
+		dplyr::select(-fish, -standard.fish, -standard.gerr, -gerr_preds)%>%
+		rename(buffID = buffIDnum)
+
+	hexdata <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'))%>%
+		dplyr::select(-stndrd_hxf)%>%
+      rename(standard.hexshark = stndrd_hxs,
+        standard.hexdist2shore = stndrd_h2,
+        standard.hexdistcmg = stndrd_hxd,
+        standard.hexlowdensg = stndrd_hxl,
+        standard.hexmeddensg = stndrd_hxm,
+        standard.dist2jetty = stndrd_d2,
+        standard.depth = stndrd_d,
+        standard.sgPCA1 = st_PCA1,
+        zlogit.sqzrisk = zlgt_sq,
+        relPropPD = rlPrpPD
+        )
+
+	fishhex <- st_as_sf(st_read('predictions_from_simplifiedBRTs_Gerreidae_and_sppRichness_june24.shp'), crs = 'WGS84')%>%
+		dplyr::select(maxN_preds, geometry)
+
+	fishbuff <- st_as_sf(st_read('sf_with_predictions_INTO_BUFFERS_fromBRTs_july2024.shp'), crs = 'WGS84')%>%
+		dplyr::select(buffID, maxN_preds, geometry)%>%
+		rename(rID = buffID)
+
+	## join predictions of MaxN to dfs,keep spatial information & standardised the MaxN predictions
+
+		newhex <- st_join(hexdata, fishhex)%>%
+			mutate(standard.hexfish = (maxN_preds-mean(maxN_preds))/sd(maxN_preds), .before = 'standard.hexdist2shore')
+
+		newpoint <- st_as_sf(left_join(pointdata, fishbuff, by = 'rID'))%>%
+			mutate(standard.fish = (maxN_preds-mean(maxN_preds))/sd(maxN_preds), .before = 'standard.dist2shore')
+
+	#####
+	## - save: hexdata with new MaxN coV with spatial and as CSV, and pointdata as just a new csv. 
+
+		st_write(newhex, 'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp', driver = 'ESRI Shapefile')
+		st_write(newhex, 'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv', driver = 'CSV')
+		st_write(newpoint, 'standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.shp', driver = 'ESRI Shapefile')
+		st_write(newpoint, 'standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv', driver = 'CSV')
+
+
+#####################
+### - Pre-July 2024 
+#####################
 ## Load data
 
 	hab.new <-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')
@@ -123,119 +168,6 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 	prey.data <- st_as_sf(st_read('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_sppRichness_june24.shp'),crs = 'WGS84')%>%
 		rename(rich.predicts = rch_prd, gerr.predicts = grr_prd, dist2shore = dst2shr, prop_mds = prp_mds, prop_hds = prp_hds, prop_lds = prp_lds)
 	summary(prey.data)
-
-	richsimple<-readRDS('resource_chp3/model_RDS/simplified_sppRichness_tc5_BRT_jun24_lowandhigh_densg_removed.RDS')
-	gerrsimple<-readRDS('resource_chp3/model_RDS/simplified_Gerries_tc3_BRT_jun24_lowdensg_removed.RDS')
-
-	buffs.sf <- st_as_sf(st_read('resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.shp'),crs='WGS84')%>%
-		dplyr::select(-bt_g_PD, -smpl_PD, -sppsmPD)%>%
-		rename(dist2shore = dst2shr)
-	
-	gerr.predicts.buffs<-predict.gbm(gerrsimple,buffs.sf,n.trees=gerrsimple$gbm.call$best.trees,type='response')
-	gerr.predicts.buffs<-as.data.frame(gerr.predicts.buffs)
-
-	rich.predicts.buffs<-predict.gbm(richsimple,buffs.sf,n.trees=richsimple$gbm.call$best.trees,type='response')
-	rich.predicts.buffs<-as.data.frame(rich.predicts.buffs)
-	
-	buff.preds<-bind_cols(buffs.sf,rich.predicts.buffs,gerr.predicts.buffs)%>%
-		rename(gerr.preds='...13', rich.preds = rich.predicts.buffs, rID = buffID)%>%
-		mutate(fish = rich.preds * gerr.preds, .before = 'geometry')
-
-	# save the updated buffs.sf and df4preds
-		st_write(buff.preds,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp',driver='ESRI Shapefile') 
-		st_write(buff.preds,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp', driver = 'CSV')
-
-	buff.preds<- st_as_sf(st_read('resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp'),crs='WGS84') # buffID // rID in pointdata
-
-	data <- left_join(pointdata%>%dplyr::select(-standard.fish, -fish),buff.preds%>%dplyr::select(rID,gerr_preds,fish), by = c('rID'))%>% 
-		mutate(standard.fish=((fish-mean(fish))/sd(fish)),
-			standard.gerr=((gerr_preds-mean(gerr_preds))/sd(gerr_preds)))
-	summary(data)
-
-	# save the updated pointdata
-		st_write(data,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.shp',driver='ESRI Shapefile', append = FALSE) 
-		st_write(data,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv', driver = 'CSV')
-
-  	#### DIFFERENT APPROACH, 2/5/2023 : predict the BRTs straight into a buffer+habitat df. this would be mathematically better, than taking lots of averages. 
-
-		richsimple<-readRDS('resource_chp3/model_RDS/simplified_sppRichness_tc5_BRT_jun24_lowandhigh_densg_removed.RDS')
-		gerrsimple<-readRDS('resource_chp3/model_RDS/simplified_Gerries_tc3_BRT_jun24_lowdensg_removed.RDS')
-		
-		simple.models<-c('richsimple','gerrsimple')
-
-		### no longer a prpoblem. There's an issue with the buffers (r33 specifically) where it wasn't identifying the habitat in the buffer. Here's code to fix it in the document. 
-			buffswithhab<-st_join(buffs,sharksANDhabitat)
-			r33<-buffs%>%filter(buffID=='r33')
-
-			sf_use_s2(FALSE) # turn speherical geometry off
-
-			buffs2.join<-st_join(st_make_valid(r33),st_make_valid(hab.new))%>%mutate(hab_geo=st_geometry(st_intersection(st_make_valid(st_geometry(hab.new)),st_make_valid(st_geometry(r33)))))%>%mutate(hab_area=st_area(hab_geo))
-
-			buffs2.spread<-buffs%>%spread(key= 'habitat',value = 'hab_area',fill=0)%>%group_by(buffID)%>%summarise(across(c('buff_ar','highdensg','lowdensg','meddensg','sargassum','rocks.urb',),max))%>%mutate(prop_ldsg=lowdensg/buff_ar,prop_medsg=meddensg/buff_ar,prop_hdsg=highdensg/buff_ar,prop_sarg=sargassum/buff_ar,prop_urb_r=rocks.urb/buff_ar)%>%dplyr::select(buffID,buff_ar,prop_ldsg,prop_medsg,prop_hdsg,prop_sarg,prop_urb_r,geometry)%>%add_column(prop_unkwn=0,.before='geometry')%>%
-				add_column(prop_marsh=0,prop_deep=0,prop_inlvg=0,prop_brs=0,prop_man=0,prop_spong=0)
-				
-			buffs.new<-buffs2.spread
-				{
-				buffs.new$prop_brs<-as.numeric(buffs.new$prop_brs)
-				buffs.new$prop_ldsg<-as.numeric(buffs.new$prop_ldsg)
-				buffs.new$prop_medsg<-as.numeric(buffs.new$prop_medsg)
-				buffs.new$prop_hdsg<-as.numeric(buffs.new$prop_hdsg)
-				buffs.new$prop_man<-as.numeric(buffs.new$prop_man)
-				buffs.new$prop_sarg<-as.numeric(buffs.new$prop_sarg)
-				buffs.new$prop_marsh<-as.numeric(buffs.new$prop_marsh)
-				buffs.new$prop_urb_r<-as.numeric(buffs.new$prop_urb_r)
-				buffs.new$prop_deep<-as.numeric(buffs.new$prop_deep)
-				buffs.new$prop_inlvg<-as.numeric(buffs.new$prop_inlvg)
-				buffs.new$prop_unkwn<-as.numeric(buffs.new$prop_unkwn)
-				}
-		
-			cmg<-st_as_sf(st_read('habitat_model/centroid_mangroves_north.shp'))
-
-			buffs.new2<-buffs.new%>%add_column(dist_cmg=st_distance(st_centroid(buffs.new$geometry),cmg),.before='geometry')
-
-			r33withhab2<-buffs.new2%>%
-				dplyr::select('buffID','prop_brs','prop_ldsg','prop_medsg','prop_hdsg','prop_sarg','prop_urb_r','prop_deep','prop_marsh','prop_man','prop_spong','prop_inlvg','prop_unkwn','dist_cmg')%>%
-				mutate(dist2shore=st_distance(st_centroid(geometry),st_union(land)))%>%
-				filter(row_number()==1)
-			
-				r33withhab2$dist2shore<-as.numeric(r33withhab2$dist2shore)
-				r33withhab2$dist_cmg<-as.numeric(r33withhab2$dist_cmg)
-			
-				r33df<-as.data.frame(r33withhab2)%>%dplyr::select(-geometry)
-
-
-	sf4preds<-buffs%>%group_by(buffID)%>%
-		dplyr::select('buffID','prop_ldsg','prop_mdsg','prop_hdsg','prop_unkwn','dist_cmg')%>%
-		mutate(dist2shore=as.numeric(st_distance(st_centroid(geometry),st_union(land))),.before='geometry')
-
-	df4preds<-as.data.frame(sf4preds)%>%dplyr::select(-geometry)%>%rename(prp_lds=prop_ldsg,prp_mds=prop_mdsg,prp_hds=prop_hdsg)
-	sapply(df4preds,class)
-
-	sf4<-sf4preds%>%rename(prp_lds=prop_ldsg,prp_mds=prop_mdsg,prp_hds=prop_hdsg)
-
-	for(i in simple.models){
-		mod<-get(i)
-		predicts<-predict.gbm(mod,df4preds,n.trees=mod$gbm.call$best.trees,type='response')
-		predicts<-as.data.frame(predicts)
-		predicts.df<-bind_cols(df4preds,predicts)
-		sf4b<-left_join(sf4,predicts.df)
-		new=paste0(i,'PD')
-		sf4<-sf4b%>%dplyr::rename_with(.fn=~paste0(new),.cols='predicts')
-		}
-
-		# back transform the gerreidae (poisson, log)
-		sf4<-sf4%>%mutate(bt.gerr.simPD=exp(simple_gerrPD),.before='geometry')%>%rename(sppsimPD=simple_sppPD)
-		## sf4 has lost the geometry as a result from the left join. so join again to preserve the geometry
-		sf44 <- left_join(sf4preds,sf4)
-		summary(sf44)
-		summary(sf4preds)
-		summary(sf4) # checks 
-
-		# save the updated sf4preds and df4preds
-			st_write(sf44,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.shp',append=FALSE) # append command set to FALSE replaces the old file with the new one. If set to TRUE it would add the new data as further layers.
-			write_sf(sf44,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.csv')
-
-
 
 	fishiness_in_buffers<-st_as_sf(st_read('resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.shp'),crs='WGS84')%>%
 		dplyr::select(-smpl_PD)%>%
@@ -834,6 +766,117 @@ standard.dist2jetty) # for some reason the driver wont write the file this big, 
 ## Code graveyard
 ##########################################
 
+
+	richsimple<-readRDS('resource_chp3/model_RDS/simplified_sppRichness_tc5_BRT_jun24_lowandhigh_densg_removed.RDS')
+	gerrsimple<-readRDS('resource_chp3/model_RDS/simplified_Gerries_tc3_BRT_jun24_lowdensg_removed.RDS')
+
+	buffs.sf <- st_as_sf(st_read('resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.shp'),crs='WGS84')%>%
+		dplyr::select(-bt_g_PD, -smpl_PD, -sppsmPD)%>%
+		rename(dist2shore = dst2shr)
+	
+	gerr.predicts.buffs<-predict.gbm(gerrsimple,buffs.sf,n.trees=gerrsimple$gbm.call$best.trees,type='response')
+	gerr.predicts.buffs<-as.data.frame(gerr.predicts.buffs)
+
+	rich.predicts.buffs<-predict.gbm(richsimple,buffs.sf,n.trees=richsimple$gbm.call$best.trees,type='response')
+	rich.predicts.buffs<-as.data.frame(rich.predicts.buffs)
+	
+	buff.preds<-bind_cols(buffs.sf,rich.predicts.buffs,gerr.predicts.buffs)%>%
+		rename(gerr.preds='...13', rich.preds = rich.predicts.buffs, rID = buffID)%>%
+		mutate(fish = rich.preds * gerr.preds, .before = 'geometry')
+
+	# save the updated buffs.sf and df4preds
+		st_write(buff.preds,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp',driver='ESRI Shapefile') 
+		st_write(buff.preds,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp', driver = 'CSV')
+
+	buff.preds<- st_as_sf(st_read('resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_june24.shp'),crs='WGS84') # buffID // rID in pointdata
+
+	data <- left_join(pointdata%>%dplyr::select(-standard.fish, -fish),buff.preds%>%dplyr::select(rID,gerr_preds,fish), by = c('rID'))%>% 
+		mutate(standard.fish=((fish-mean(fish))/sd(fish)),
+			standard.gerr=((gerr_preds-mean(gerr_preds))/sd(gerr_preds)))
+	summary(data)
+
+	# save the updated pointdata
+		st_write(data,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.shp',driver='ESRI Shapefile', append = FALSE) 
+		st_write(data,'resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv', driver = 'CSV')
+
+  	#### DIFFERENT APPROACH, 2/5/2023 : predict the BRTs straight into a buffer+habitat df. this would be mathematically better, than taking lots of averages. 
+
+		richsimple<-readRDS('resource_chp3/model_RDS/simplified_sppRichness_tc5_BRT_jun24_lowandhigh_densg_removed.RDS')
+		gerrsimple<-readRDS('resource_chp3/model_RDS/simplified_Gerries_tc3_BRT_jun24_lowdensg_removed.RDS')
+		
+		simple.models<-c('richsimple','gerrsimple')
+
+		### no longer a prpoblem. There's an issue with the buffers (r33 specifically) where it wasn't identifying the habitat in the buffer. Here's code to fix it in the document. 
+			buffswithhab<-st_join(buffs,sharksANDhabitat)
+			r33<-buffs%>%filter(buffID=='r33')
+
+			sf_use_s2(FALSE) # turn speherical geometry off
+
+			buffs2.join<-st_join(st_make_valid(r33),st_make_valid(hab.new))%>%mutate(hab_geo=st_geometry(st_intersection(st_make_valid(st_geometry(hab.new)),st_make_valid(st_geometry(r33)))))%>%mutate(hab_area=st_area(hab_geo))
+
+			buffs2.spread<-buffs%>%spread(key= 'habitat',value = 'hab_area',fill=0)%>%group_by(buffID)%>%summarise(across(c('buff_ar','highdensg','lowdensg','meddensg','sargassum','rocks.urb',),max))%>%mutate(prop_ldsg=lowdensg/buff_ar,prop_medsg=meddensg/buff_ar,prop_hdsg=highdensg/buff_ar,prop_sarg=sargassum/buff_ar,prop_urb_r=rocks.urb/buff_ar)%>%dplyr::select(buffID,buff_ar,prop_ldsg,prop_medsg,prop_hdsg,prop_sarg,prop_urb_r,geometry)%>%add_column(prop_unkwn=0,.before='geometry')%>%
+				add_column(prop_marsh=0,prop_deep=0,prop_inlvg=0,prop_brs=0,prop_man=0,prop_spong=0)
+				
+			buffs.new<-buffs2.spread
+				{
+				buffs.new$prop_brs<-as.numeric(buffs.new$prop_brs)
+				buffs.new$prop_ldsg<-as.numeric(buffs.new$prop_ldsg)
+				buffs.new$prop_medsg<-as.numeric(buffs.new$prop_medsg)
+				buffs.new$prop_hdsg<-as.numeric(buffs.new$prop_hdsg)
+				buffs.new$prop_man<-as.numeric(buffs.new$prop_man)
+				buffs.new$prop_sarg<-as.numeric(buffs.new$prop_sarg)
+				buffs.new$prop_marsh<-as.numeric(buffs.new$prop_marsh)
+				buffs.new$prop_urb_r<-as.numeric(buffs.new$prop_urb_r)
+				buffs.new$prop_deep<-as.numeric(buffs.new$prop_deep)
+				buffs.new$prop_inlvg<-as.numeric(buffs.new$prop_inlvg)
+				buffs.new$prop_unkwn<-as.numeric(buffs.new$prop_unkwn)
+				}
+		
+			cmg<-st_as_sf(st_read('habitat_model/centroid_mangroves_north.shp'))
+
+			buffs.new2<-buffs.new%>%add_column(dist_cmg=st_distance(st_centroid(buffs.new$geometry),cmg),.before='geometry')
+
+			r33withhab2<-buffs.new2%>%
+				dplyr::select('buffID','prop_brs','prop_ldsg','prop_medsg','prop_hdsg','prop_sarg','prop_urb_r','prop_deep','prop_marsh','prop_man','prop_spong','prop_inlvg','prop_unkwn','dist_cmg')%>%
+				mutate(dist2shore=st_distance(st_centroid(geometry),st_union(land)))%>%
+				filter(row_number()==1)
+			
+				r33withhab2$dist2shore<-as.numeric(r33withhab2$dist2shore)
+				r33withhab2$dist_cmg<-as.numeric(r33withhab2$dist_cmg)
+			
+				r33df<-as.data.frame(r33withhab2)%>%dplyr::select(-geometry)
+
+
+	sf4preds<-buffs%>%group_by(buffID)%>%
+		dplyr::select('buffID','prop_ldsg','prop_mdsg','prop_hdsg','prop_unkwn','dist_cmg')%>%
+		mutate(dist2shore=as.numeric(st_distance(st_centroid(geometry),st_union(land))),.before='geometry')
+
+	df4preds<-as.data.frame(sf4preds)%>%dplyr::select(-geometry)%>%rename(prp_lds=prop_ldsg,prp_mds=prop_mdsg,prp_hds=prop_hdsg)
+	sapply(df4preds,class)
+
+	sf4<-sf4preds%>%rename(prp_lds=prop_ldsg,prp_mds=prop_mdsg,prp_hds=prop_hdsg)
+
+	for(i in simple.models){
+		mod<-get(i)
+		predicts<-predict.gbm(mod,df4preds,n.trees=mod$gbm.call$best.trees,type='response')
+		predicts<-as.data.frame(predicts)
+		predicts.df<-bind_cols(df4preds,predicts)
+		sf4b<-left_join(sf4,predicts.df)
+		new=paste0(i,'PD')
+		sf4<-sf4b%>%dplyr::rename_with(.fn=~paste0(new),.cols='predicts')
+		}
+
+		# back transform the gerreidae (poisson, log)
+		sf4<-sf4%>%mutate(bt.gerr.simPD=exp(simple_gerrPD),.before='geometry')%>%rename(sppsimPD=simple_sppPD)
+		## sf4 has lost the geometry as a result from the left join. so join again to preserve the geometry
+		sf44 <- left_join(sf4preds,sf4)
+		summary(sf44)
+		summary(sf4preds)
+		summary(sf4) # checks 
+
+		# save the updated sf4preds and df4preds
+			st_write(sf44,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.shp',append=FALSE) # append command set to FALSE replaces the old file with the new one. If set to TRUE it would add the new data as further layers.
+			write_sf(sf44,'resource_chp3/sf_with_predictions_INTO_BUFFERS_fromBRTs_aug23.csv')
 
 
 

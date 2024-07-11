@@ -171,7 +171,7 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm,patchw
 ######
 
 	maxN.preds<-predict.gbm(simple.model,sf4preds,n.trees=simple.model$gbm.call$best.trees,type='response')
-	maxN.preds<-as.data.frame(maxN.preds)
+	maxN.preds<-as.data.frame(maxN.preds) 
 
 	predicts.sf<-bind_cols(sf4preds, maxN.preds)
 
