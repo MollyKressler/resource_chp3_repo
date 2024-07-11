@@ -17,11 +17,10 @@ pacman::p_load(tidyverse,MuMIn,ggplot2,flextable,cowplot,patchwork,lme4,stats,gg
 
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/resource_chp3')
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.csv')
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')
 
-hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%
-		mutate(jcode=as.numeric(jcode))%>%
-		rename(standard.hexsgPCA1 = standard.sgPCA1)
+hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_June24.csv')%>%
+		mutate(jcode=as.numeric(jcode))
 
 names(hexdata)
 
@@ -235,7 +234,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 
   ## fish, hex
-	fish.glm <- glm(standard.hexfish ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.dist2jetty + standard.hexsgPCA1, data=hexdata) #define the global model
+	fish.glm <- glm(standard.hexfish ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.hexdist2jetty + standard.sgPCA, data=hexdata) #define the global model
 
 	fish.dredge <- dredge(fish.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
 
@@ -259,8 +258,37 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  fontsize(size = 10, part = 'all')%>%
 	  autofit()
 
-	  save_as_image(fish.modelsranked.tabled,'dredged_results_fishHEXresponse_depth__MDS_LDS_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
+	  save_as_image(fish.modelsranked.tabled,'dredged_results_fishHEXresponse_June2024.png',webshot='webshot')
 	get.models(fish.dredge,1)[[1]]
+
+
+	## gerries only, SD only 
+		gerr.glm <- glm(standard.hexgerr ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.hexdist2jetty + standard.sgPCA, data=hexdata) #define the global model
+
+		gerr.dredge <- dredge(gerr.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
+
+		gerr.modelsranked.tabled <- gerr.dredge%>%
+			as_tibble %>%
+			round(3)%>%
+		  mutate(weight=round(weight,9), model = 1:n()) %>%
+		  mutate(Null = ifelse(df == 2, 1, NA))%>%
+		  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
+		 filter(!is.na(estimate)) %>%
+		  group_by(pick(2,3,4,5,6,7,8)) %>%
+		  summarise(model = paste(name, collapse = ' + ')) %>%
+		  ungroup() %>%
+		  select(model, everything())%>% 
+		  arrange(-weight) %>%
+		  flextable()%>%	  
+		  theme_zebra()%>%
+		  set_header_labels(model = 'Model',delta = 'dAICc')%>%
+		  align(align = 'left', part = 'all')%>%
+		  color(color='black',part='all')%>%
+		  fontsize(size = 10, part = 'all')%>%
+		  autofit()
+
+		  save_as_image(gerr.modelsranked.tabled,'dredged_results_Gerreidae_SDonly_HEXresponse_June2024.png',webshot='webshot')
+		get.models(fish.dredge,1)[[1]]
 
 
 #############################
@@ -312,7 +340,9 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 # H2: fish and distance metrics
 
-	fm <- glm(standard.hexfish ~ standard.hexdist2shore + standard.hexdistcmg + standard.sgPCA1 + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
+	fm <- glm(standard.hexfish ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian)
+
+	gm <- glm(standard.hexgerr ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian) # SD gerries only 
 
 # H3: large sharks and distance metrics
 
@@ -320,8 +350,9 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	pmm<-glm(standard.press ~ standard.depth + standard.dist2jetty + standard.distcmg + standard.depth*standard.dist2jetty, data=pointdata)
 
 # save the models as RDS 
-	saveRDS(sgm,'seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	saveRDS(fm,'fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
+	saveRDS(sgm,'hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
+	saveRDS(fm,'hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
+	saveRDS(gm,'hypotesting_dredge_results/gerries_sdonly_glm_hypotesting_distancemetrics_june24.RDS')
 	saveRDS(pm,'hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 #############################
@@ -330,7 +361,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 # read in model RDS
 	sgm <- readRDS('hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
+	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
 	pm <- readRDS('hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 # make table
@@ -339,16 +370,19 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	sgf <- flextable::as_flextable(sgm)
 	pf <- flextable::as_flextable(pm)
 	ff <- flextable::as_flextable(fm)
+	gf <- flextable::as_flextable(gm)
 
 	s1 <- tbl_regression(sgm,exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.dist2jetty='Dist. to Jetty','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)
-	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
+	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdistcmg='Dist. to Central Mangroves',standard.hexdist2jetty='Dist. to Nearest Jetty',standard.hexsgPCA='Seagrass PCA','standard.hexdist2jetty*standard.hexdistcmg'='Dist. to Nearest Jetty * Dist. to Central Mangroves'))%>%
+		bold_p(t=0.05)	
+	g1 <- tbl_regression(gm, exp=FALSE,conf_level=0.95,label=list(standard.hexdistcmg='Dist. to Central Mangroves',standard.hexdist2jetty='Dist. to Nearest Jetty',standard.sgPCA='Seagrass PCA','standard.hexdist2jetty*standard.hexdistcmg'='Dist. to Nearest Jetty * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)	
 	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves', 'standard.depth:standard.dist2jetty' = ' Depth * Dist. to Jetty'))%>%
 		bold_p(t=0.05)
 
 	# side by side
-	tbl_merge(tbls = list(s1,f1), tab_spanner = c('Hypothesis 1', 'Hypothesis 2'))
+	tbl_merge(tbls = list(s1,f1,p1), tab_spanner = c('Hypothesis 1', 'Hypothesis 2', 'Hypothesis 3'))
 	# stacked 
 	stacked <- tbl_stack(list(s1,f1,p1),group_header=c('1','2','3'))%>%
 	bold_levels()
@@ -365,7 +399,8 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	## AIC of three. mdoels relative to each other
 	AIC(sgm, fm, pm)
 
-	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_may2024.png' ,webshot='webshot')
+	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_June2024.png' ,webshot='webshot')
+	save_as_docx(stacked.summary,path = 'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_June2024.docx')
 
 #############################
 ## - Residuals checking: histograms of residuals, and standardsised residuals versus fitted, looking for heteroscedasticity
@@ -377,40 +412,42 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  #for multiple colors: 
 	  c('#3a6c74','#708d8e','#3cbcfc')
 	
-	# R Server, read in model RDS
-	sgm <- readRDS('~/resource/data_and_RDS_NOTforupload/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	fm <- readRDS('~/resource/data_and_RDS_NOTforupload/fishesmetric_glm_hypotesting_distancemetrics_sept23.RDS')
-	pm <- readRDS('~/resource/data_and_RDS_NOTforupload/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
+	sgm <- readRDS('hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
+	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
+	pm <- readRDS('hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
-	hexdata<-read.csv('~/resource/data_and_RDS_NOTforupload/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%
-	  mutate(jcode=as.numeric(jcode))%>%
-	  rename(standard.hexsgPCA1 = st_PCA1)
+	hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_June24.csv')%>%
+		mutate(jcode=as.numeric(jcode))
 
-	pointdata <- read.csv('~/resource/data_and_RDS_NOTforupload/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
-	  mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
-	  mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
+	pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')
+	nrow(pointdata)
 	
   # histogram of residuals
 	sgm.histresiduals <- ggplot(data = hexdata, aes(x = sgm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
 	  labs(title = 'Seagrass PCA', x = 'Residuals', y = 'Frequency')+
 	  theme_bw()
 	fm.histresiduals <- ggplot(data = hexdata, aes(x = fm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
+	  labs(title = 'Fish Metric', x = 'Residuals', y = 'Frequency')+
+	  theme_bw()
+	gm.histresiduals <- ggplot(data = hexdata, aes(x = gm$residuals)) +
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
 	  labs(title = 'Fish Metric', x = 'Residuals', y = 'Frequency')+
 	  theme_bw()
 	pm.histresiduals <- ggplot(data = pointdata, aes(x = pm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74') +
-	  labs(title = 'Pressure', x = 'Residuals', y = 'Frequency')+
+	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
+	  labs(title = 'Relative Risk', x = 'Residuals', y = 'Frequency')+
 	  theme_bw()
 	
 	stacked.bedtdredge.residualsHistograms <- sgm.histresiduals / fm.histresiduals / pm.histresiduals
 	
-	ggsave(stacked.bedtdredge.residualsHistograms, file = 'hypotesting_dredge_results/dredgebestmodel_HISTresiduals_fish_sg_relativerisk_may24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+	ggsave(stacked.bedtdredge.residualsHistograms, file = 'hypotesting_dredge_results/dredgebestmodel_HISTresiduals_fish_sg_relativerisk_JUNE24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
 	
 	## residuals versus fitted, plots
     sgm.resids <- resid(sgm)
     fm.resids <- resid(fm)
+    gm.resids <- resid(gm)
     pm.resids <- resid(pm)
     
     sgm.fitted.resids <- ggplot(data = sgm, aes(x=.fitted, y=.resid))+
@@ -419,6 +456,11 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
       labs(title='', x='Fitted', y='Residuals')+
       theme_bw()
     fm.fitted.resids <- ggplot(data = fm, aes(x=.fitted, y=.resid))+
+      geom_point(color = '#3a6c74') +
+      geom_hline(yintercept = 0,)+
+      labs(title='', x='Fitted', y='Residuals')+
+      theme_bw()
+    gm.fitted.resids <- ggplot(data = gm, aes(x=.fitted, y=.resid))+
       geom_point(color = '#3a6c74') +
       geom_hline(yintercept = 0,)+
       labs(title='', x='Fitted', y='Residuals')+
@@ -432,7 +474,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
     
     stacked.bestdredge.residualsVSfitted <- sgm.fitted.resids / fm.fitted.resids / pm.fitted.resids
     
-    ggsave(stacked.bestdredge.residualsVSfitted, file = 'hypotesting_dredge_results/dredgebestmodel_residualsVSfitted_fish_sg_relativerisk_may24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
+    ggsave(stacked.bestdredge.residualsVSfitted, file = 'hypotesting_dredge_results/dredgebestmodel_residualsVSfitted_fish_sg_relativerisk_June24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
     
     
     

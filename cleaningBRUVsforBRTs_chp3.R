@@ -5,20 +5,35 @@
 ## updated: 8 Feb. 2023
 ## updated 10 AUgust 2023: updating habitat data used. Copied and pasted previous work from 7/2/2023 at the bottom and amended there. 
 
+### deprecated for further analysis, July 2024. See file BRUVSdatacleaner.R
+
 #### HABITAT JOINING will need updating when I get the updated year-specific remote sensed habitat maps from Emily Courmier. Acquisition TBD. 
 
 
 pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,vegan,sf,ggsn)
-setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/')
 # colors for figures: by season, wet = cadetblue3 and dry = tomato4
 
+############
+##### June 2024 - removing Grimmel & Bullock data 
+
+data <- st_as_sf(st_read('bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.shp'), crs='WGS84')%>%
+	filter(source == 'SD')
+data
+
+st_write(data, 'bruvs_data_SarahDriscollonly_joinedWITHhabitat_winter2020EChabitat_june24.csv', driver = 'CSV')
+st_write(data, 'bruvs_data_SarahDriscollonly_joinedWITHhabitat_winter2020EChabitat_june24.shp', driver = 'ESRI Shapefile')
+
+############
+############
+
 ############ ############ ############ ############ ############ 
-############ ############ # DATASETS # ############ ############ 
-############ ########## LOAD @ THE START  ######### ############ 
-############ ############ ############ ############ ############ 
+############ 3 February 2023 - collating and combining BRUVS data from Sarah Driscoll and Henriette Grimmel 
 
 # SHAPEFILE: bruvs data and habitat data (using sep22 updated habitat SOSF) joined together, with dist2shore calculated
-	joined<-st_as_sf(st_read('bruvs_data_joinedWITHhabitat_feb23.shp'))%>%rename(spp_abundance=spp_bnd,spp_richness=spp_rch,SW_Species=SW_Spcs,SW_Families=SW_Fmls,prop_brs=prp_brs,prop_ldsg=prp_lds,prop_medsg=prp_mds,prop_hdsg=prp_hds,prop_sarg=prp_srg,prop_urb_r=prp_rb_,prop_deep=prop_dp,dist2shore=dst2shr,Sphyraenidae=Sphyrnd,Scaridae=Scarida,Haemulidae=Haemuld,Gerreidae=Gerreid,Belonidae=Belonid,Sparidae=Sparida)%>%select(BRUV,jcode,spp_abundance,spp_richness,SW_Species,SW_Families,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae,prop_brs,prop_ldsg,prop_medsg,prop_hdsg,prop_sarg,prop_urb_r,prop_deep,dist2shore)
+	joined<-st_as_sf(st_read('bruvs_data_joinedWITHhabitat_feb23.shp'))#%>%rename(spp_abundance=spp_bnd,spp_richness=spp_rch,SW_Species=SW_Spcs,SW_Families=SW_Fmls,prop_brs=prp_brs,prop_ldsg=prp_lds,prop_medsg=prp_mds,prop_hdsg=prp_hds,prop_sarg=prp_srg,prop_urb_r=prp_rb_,prop_deep=prop_dp,dist2shore=dst2shr,Sphyraenidae=Sphyrnd,Scaridae=Scarida,Haemulidae=Haemuld,Gerreidae=Gerreid,Belonidae=Belonid,Sparidae=Sparida)%>%select(BRUV,jcode,spp_abundance,spp_richness,SW_Species,SW_Families,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae,prop_brs,prop_ldsg,prop_medsg,prop_hdsg,prop_sarg,prop_urb_r,prop_deep,dist2shore)
+
+	head(joined)
 
 # DATE FRAME: bruvs data and habitat data (using sep22 updated habitat SOSF) joined together, with dist2shore calculated
 
@@ -33,13 +48,6 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 
 	hab.noland<-st_difference(hab.grid,st_union(land)) # cut land out of hab.grid. 
 
-
-############ ############ ############ ############ ############ 
-############ ############ ############ ############ ############ 
-
-
-############ ############ ############ ############ ############ 
-############ 3 February 2023 - collating and combining BRUVS data from Sarah Driscoll and Henriette Grimmel 
 
 ## Combining BRUVS data 
 	## BRUVS data from Sarah Driscoll
@@ -96,6 +104,84 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 	table.info<-data%>%select(BRUV,spp_abundance,spp_richness,SW_Species,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae)%>%filter(spp_abundance!='NA')
 	table<-flextable(table.info)%>%set_header_labels(BRUV='ID',spp_abundance='Abundance',spp_richness='Richness',SW_Species='Shannon Index')%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 10, part = 'all')%>%color(color='black',part='all')%>%autofit()
 	#save_as_image(table,'figures+tables/bruvs_table_richness_abundance_familiescounts.png',webshot='webshot2')
+
+
+
+############ ############ ############ ############ ############ 
+############ 10 August 2023 - UPDATING WITH DATA FROM EMILY COURMIER -  SPATIAL: (B) import BRUVS data into sf. (C) join habitat to BRUVS locations. (E) some figures of BRUV location and a table with BRUV data and habitat data 
+
+## import cleaned combined BRUVS data - since we already calculated shannons and diversity abovve, we are importing that data set, removing the habitat data and proceeding from Step C. We'll skip D, and move on to E-table.
+	dd <- read.csv('resource_chp3/bruvs_data_cleaned_sd_and_hg.csv')%>%
+		dplyr::select(-X)%>%
+		dplyr::filter(BRUV_ID!='NA')
+
+	br<-st_as_sf(dd,coords=c('Longitude','Latitude'),crs='WGS84')
+	br
+	ggplot()+geom_sf(data=br)+theme_bw() # all good. 
+
+
+## (C) join habitat data to BRUVS location [temporary - updated year specific data coming from Emily soon]
+### some BRUVS occur close to the edge of the land mass which is cut out of the habitat grid. So need to use an sf function which joins the point to the nearest grid cell -- try st_overlaps, st_touches, st_crosses. 
+
+	hab.grid<-st_as_sf(st_read('winter2020habitat_hexagon_grid_ECdata.shp'),crs='WGS84')
+
+	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')
+
+	hab.noland<-st_as_sf(st_read('winter2020habitat_hexagon_grid_noLAND_ECdata.shp'),crs='WGS84')
+
+	ggplot()+geom_sf(data=hab.noland,alpha=0.3,col='goldenrod2')+geom_sf(data=br,fill='cadetblue3',col='cadetblue3')+geom_sf(data=land,fill='grey82',col='grey70',alpha=0.3)+theme_bw() # all good. 
+
+	joined<-st_join(br,hab.noland,join=st_nearest_feature)
+	joined
+
+## (D) calculate distance to nearest shore 
+
+	joined<-joined%>%mutate(dist2shore=as.numeric(st_distance((joined),st_union(land))),.before='geometry')
+	# save 
+	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.shp',driver='ESRI Shapefile')
+	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.csv',driver='CSV')
+		#joined<-st_as_sf(st_read('bruvs_data_joinedWITHhabitat_feb23.shp'))
+
+
+## (E) Just need to update the tables: BRUV data and habitat data 
+
+	table.info<-joined%>%
+		dplyr::select(BRUV,Season,spp_abundance,spp_richness,SW_Species,SW_Families,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae,prp_lds,prp_mds,prp_hds,prp_vgg,prp_brr,dist2shore)
+	tab2<-as.data.frame(table.info)%>%
+		dplyr::select(-geometry)
+	names(tab2)
+	table<-flextable(tab2)%>%set_header_labels(BRUV='ID',spp_abundance='Abundance',spp_richness='Richness',SW_Species='H, species',SW_Families='H, families')%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 10, part = 'all')%>%color(color='black',part='all')%>%colformat_double(digits=3)%>%set_header_labels(prop_brs='Bare Sand',prop_ldsg='Low Density Seagrass',prop_medsg='Medium Density Seagrass',prop_hdsg='High Density Seagrass',prop_sarg='Sargassum',prop_urb_r='Urban & Rocky',prop_deep='Deep Water',dist2shore='Distance to Nearest Shore (m)')%>%autofit()
+	save_as_image(table,'resource_chp3/figures+tables/bruvs_table_data_joinedwithhabitat.png',zoom=2,webshot='webshot')
+
+
+
+######################## 
+## - Assessing for temporal variation between 2014 and 2018 BRUVs data 
+######################## 
+
+	fish <- read.csv('bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.csv')
+	head(data)
+
+	fish%>%
+		group_by(source)%>%
+		sample_n(100)%>%
+		summarise(mean(Gerreidae), sd(Gerreidae))
+
+
+	p1 <- ggplot()+
+		geom_point(data = data, aes(x = source, y = Gerreidae))+
+		theme_bw()
+	p2 <- ggplot(data = data, aes(sqrt(Gerreidae), fill = source))+
+		geom_density(alpha = 0.3)+
+		theme_bw()
+
+	ggsave(p1, file = 'bruvsdata_eval/gerries_values_RawPoints_bySource.png', device = 'png', unit = 'in', height = 4, width = 5, dpi = 400)
+	ggsave(p2, file = 'bruvsdata_eval/gerries_values_Density_bySource.png', device = 'png', unit = 'in', height = 4, width = 5, dpi = 400)
+
+
+
+
+
 
 
 
@@ -175,70 +261,6 @@ setwd('/Users/mollykressler/Documents/data_phd/resource_chp3')
 
 
 ############ 
-
-
-
-
-
-
-############ ############ ############ ############ ############ 
-############ 10 August 2023 - UPDATING WITH DATA FROM EMILY COURMIER -  SPATIAL: (B) import BRUVS data into sf. (C) join habitat to BRUVS locations. (E) some figures of BRUV location and a table with BRUV data and habitat data 
-
-## import cleaned combined BRUVS data - since we already calculated shannons and diversity abovve, we are importing that data set, removing the habitat data and proceeding from Step C. We'll skip D, and move on to E-table.
-	dd <- read.csv('resource_chp3/bruvs_data_cleaned_sd_and_hg.csv')%>%
-		dplyr::select(-X)%>%
-		dplyr::filter(BRUV_ID!='NA')
-
-	br<-st_as_sf(dd,coords=c('Longitude','Latitude'),crs='WGS84')
-	br
-	ggplot()+geom_sf(data=br)+theme_bw() # all good. 
-
-
-## (C) join habitat data to BRUVS location [temporary - updated year specific data coming from Emily soon]
-### some BRUVS occur close to the edge of the land mass which is cut out of the habitat grid. So need to use an sf function which joins the point to the nearest grid cell -- try st_overlaps, st_touches, st_crosses. 
-
-	hab.grid<-st_as_sf(st_read('winter2020habitat_hexagon_grid_ECdata.shp'),crs='WGS84')
-
-	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')
-
-	hab.noland<-st_as_sf(st_read('winter2020habitat_hexagon_grid_noLAND_ECdata.shp'),crs='WGS84')
-
-	ggplot()+geom_sf(data=hab.noland,alpha=0.3,col='goldenrod2')+geom_sf(data=br,fill='cadetblue3',col='cadetblue3')+geom_sf(data=land,fill='grey82',col='grey70',alpha=0.3)+theme_bw() # all good. 
-
-	joined<-st_join(br,hab.noland,join=st_nearest_feature)
-	joined
-
-## (D) calculate distance to nearest shore 
-
-	joined<-joined%>%mutate(dist2shore=as.numeric(st_distance((joined),st_union(land))),.before='geometry')
-	# save 
-	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.shp',driver='ESRI Shapefile')
-	write_sf(joined,'bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.csv',driver='CSV')
-		#joined<-st_as_sf(st_read('bruvs_data_joinedWITHhabitat_feb23.shp'))
-
-
-## (E) Just need to update the tables: BRUV data and habitat data 
-
-	table.info<-joined%>%
-		dplyr::select(BRUV,Season,spp_abundance,spp_richness,SW_Species,SW_Families,Sphyraenidae,Scaridae,Haemulidae,Gerreidae,Belonidae,Sparidae,prp_lds,prp_mds,prp_hds,prp_vgg,prp_brr,dist2shore)
-	tab2<-as.data.frame(table.info)%>%
-		dplyr::select(-geometry)
-	names(tab2)
-	table<-flextable(tab2)%>%set_header_labels(BRUV='ID',spp_abundance='Abundance',spp_richness='Richness',SW_Species='H, species',SW_Families='H, families')%>%theme_alafoli()%>%align(align = 'center', part = 'all')%>%font(fontname = 'Times', part = 'all')%>%fontsize(size = 10, part = 'all')%>%color(color='black',part='all')%>%colformat_double(digits=3)%>%set_header_labels(prop_brs='Bare Sand',prop_ldsg='Low Density Seagrass',prop_medsg='Medium Density Seagrass',prop_hdsg='High Density Seagrass',prop_sarg='Sargassum',prop_urb_r='Urban & Rocky',prop_deep='Deep Water',dist2shore='Distance to Nearest Shore (m)')%>%autofit()
-	save_as_image(table,'resource_chp3/figures+tables/bruvs_table_data_joinedwithhabitat.png',zoom=2,webshot='webshot')
-
-
-
-############ 
-
-
-
-
-
-
-
-
-
 
 
 

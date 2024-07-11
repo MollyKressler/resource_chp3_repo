@@ -81,7 +81,6 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 
 	## import polygonised data from Winter 2020
-	data <- st_as_sf(st_read('winter2020habitat_polygonised_forSF_ECdata.shp'), crs='WGS84')
 	labels <- as_labeller(c(lowdensg='Low Density Seagrass',mediumdensg='Medium Density Seagrass',highdensg='High Density Seagrass',vegetated='Vegetated (terrestrial)',bare.urban='Bare &/or Urban (terrestrial)'))
 	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 	cmg<-st_as_sf(st_read('habitat_model/centroid_mangroves_north.shp'),crs='WSG84')
@@ -89,21 +88,92 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	jettys<- st_as_sf(st_read('boatlaunchesBimini.kml'),crs='WGS84')
 	nrow(jettys)
 
-	winter2020map<-
-	ggplot()+geom_sf(data=data,aes(fill=feature,col=feature),lwd=0)+
-		scale_fill_manual(values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'),labels = labels)+
-		scale_colour_manual(values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'),labels = labels)+
-		geom_sf(data=r%>%filter(sharks=='no'),fill='grey82', col='white',pch=22,size=3)+
-		geom_sf(data=r%>%filter(sharks=='yes'),fill='white', col='grey50',pch=21,size=3)+
-		geom_sf(data=land,alpha=0,col='grey30')+
-		geom_sf(data=cmg,pch=23,size=4,col='#FFFFFF',fill='#032D59')+
-		geom_sf(data = jettys, pch = 24, size = 2, col='goldenrod1',fill='goldenrod1')+
-		theme_bw()+ 
-		theme(axis.text.x = element_text(angle = 90), legend.position = c(.75,0.17))+
-		theme_void()
-	winter2020map
+	h14 <- st_as_sf(st_read('winter2014habitat_polygonised_forSF_ECdata.shp'), crs='WGS84')
+	h18 <- st_as_sf(st_read('summer2018habitat_polygonised_forSF_ECdata.shp'), crs='WGS84')
+	h20 <- st_as_sf(st_read('winter2020habitat_polygonised_forSF_ECdata.shp'), crs = 'WGS84')
+
+	# hab maps 
+	plot1 <- ggplot()+
+		geom_sf(data=h14,aes(fill=feature,col=feature),lwd=0)+
+		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		theme_bw()+
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2014')
+	plot2 <- ggplot()+
+		geom_sf(data=h18,aes(fill=feature,col=feature),lwd=0)+
+		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		theme_bw()+	
+		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2018')
+	plot3 <- ggplot()+
+		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
+		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		theme_bw()+
+		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2020')
+
+	plot <- (plot1 | plot2 | plot3) + plot_layout(guides = "collect") & theme(legend.position = 'bottom', text = element_text(size = 7.25))
+	ggsave(plot,file='habitat_bimini_wint14_summ18_wint20_ECdata.png',device='png',unit='in',height=5.5,width=8.5,dpi=950)
+
+	# hab map, same hab data as above for 2020, but with additional information on jettys, receivers etc.
+	plot3b <- ggplot()+
+		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
+		geom_sf(data=r%>%filter(sharks=='no'),fill='grey82', col='white',pch=22,size=2)+
+		geom_sf(data=r%>%filter(sharks=='yes'),fill='white', col='grey50',pch=21,size=2)+
+		geom_sf(data=cmg,pch=23,size=3,col='#FFFFFF',fill='#032D59')+
+		geom_sf(data = jettys, pch = 24, size = 1, col='goldenrod1',fill='goldenrod1')+
+		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		theme_bw()+
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2020')
+
+		plot <- (plot1 | plot2 | plot3b) + plot_layout(guides = "collect") & theme(legend.position = 'bottom', text = element_text(size = 7.25))
 		# save
-		ggsave(winter2020map,file='habbimini2020_themevoid_emilycourmier_seagrasses_urban_vegetated.png',device='png',unit='px',height=1080,dpi=150)
+		ggsave(plot,file='habitat_bimini_wint14_summ18_wint20_withCoVdata4BSEM_ECdata.png',device='png',unit='in',height=5.5,width=8.5,dpi=950)
+
+	# just 2020 alone with covariates data points 
+	plot3c <- ggplot()+
+		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
+		geom_sf(data=r%>%filter(sharks=='no'),fill='grey82', col='white',pch=22,size=2)+
+		geom_sf(data=r%>%filter(sharks=='yes'),fill='white', col='grey50',pch=21,size=2)+
+		geom_sf(data=cmg,pch=23,size=3,col='#FFFFFF',fill='#032D59')+
+		geom_sf(data = jettys, pch = 24, size = 1, col='goldenrod1',fill='goldenrod1')+
+		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den.\n\ Seagrass', 'Low Den.\n\ Seagrass', 'Medium Den.\n\ Seagrass', 'Vegetated'))+
+		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den.\n\ Seagrass', 'Low Den.\n\ Seagrass', 'Medium Den.\n\ Seagrass', 'Vegetated'))+
+		theme_bw()+
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2020')+
+		guides(fill=guide_legend(nrow=2,byrow=TRUE))
+
+		ggsave(plot3c,file='solohabbimini2020_withCoVforBSEM_ECdata.png',device='png',unit='in',width=5, height = 7,dpi=850)
+
+###################
+## BRUVS locations map
+###################
+		
+		land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
+		data <- st_as_sf(st_read('bruvs_data_joinedWITHhabitat_winter2020EChabitat_aug23.shp'), crs= 'WGS84')
+		### SD and HG data 
+		bruvslocations <- ggplot()+
+			geom_sf(data = land, col = 'grey75', lwd = 0.5)+
+				geom_sf(data = data, aes(col = source, pch = source))+
+				scale_color_manual(values = c('#020f75', '#7c1447'))+
+				theme_bw()
+		ggsave(bruvslocations,file='bruvsdata_eval/bruvs_locations_hg_sd_bysource.png',device='png',unit='px',height=1080,dpi=150)
+
+		withsize <- ggplot()+
+			geom_sf(data = land, col = 'grey75', lwd = 0.5)+
+				geom_sf(data = data, aes(col = source, pch = source, size = Gerreid))+
+				scale_color_manual(values = c('#020f75', '#7c1447'))+
+				theme_bw()
+		ggsave(withsize,file='bruvsdata_eval/bruvs_locations_hg_sd_bysource_withsize.png',device='png',unit='px',height=1080,dpi=150)
+
+
+		
 
 
 ###################
