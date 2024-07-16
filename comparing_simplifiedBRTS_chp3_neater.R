@@ -131,33 +131,37 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm,patchw
 ######
 ## - Evaluate simplified model 
 ######
+		simple.model <- readRDS('resource_chp3/model_RDS/simplified_maxN_gbm_poisson_HDS_dist2shore_july2024.RDS')
+		hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
+
 		infl.simple<-simple.model$contributions
 		simple.relinf<-infl.simple%>%
 			mutate(var=fct_reorder(var,rel.inf))%>%
 			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
 				geom_bar(stat='identity')+
-				scale_fill_distiller(direction=1,palette='Oranges',limits=c(35,65),guide='none')+
+				scale_fill_distiller(direction=1,palette='Blues',limits=c(35,65),guide='none')+
 				theme_bw()+
 				coord_flip()+
 				scale_x_discrete(labels=hab.labels)+
 				ylab('Relative Influence')+
-				xlab(NULL)	
-		ggsave(simple.relinf,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/relative_influence_vars_maxN_BRT_SIMPLIFIED_july2024.png',device='png',units='in',height=6,width=8,dpi=900)
+				xlab(NULL)	+
+				theme(text = element_text(size = 14))
+		ggsave(simple.relinf,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/relative_influence_vars_maxN_BRT_SIMPLIFIED_july2024.png',device='png',units='in',height=4,width=5.5,dpi=900)
 		
 		res_simple <- as_tibble(resid(simple.model))%>%rename(resids = value)
 		F1 <- as_tibble(predict(simple.model))%>%rename(fitted = value)
 		diag_simple <- bind_cols(F1, res_simple)
 
 		resVfit_simple <- ggplot(data = diag_simple,aes(x= fitted, y = resids))+
-			geom_point()+ 
+			geom_point(col = '#3A6C74', fill = '#3A6C74')+ 
 			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
 			theme_bw()
 		res_simple_hist <- ggplot(data = res_simple, aes(x = resids))+ 
-			geom_histogram(binwidth = nrow(res_n1)/100,fill = 'black')+ 
+			geom_histogram(binwidth = nrow(res_n1)/100,col = '#3A6C74', fill = '#3A6C74')+ 
 			theme_bw()+
 			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
 		res_simple_qq <- ggplot(data=F1, aes(sample = fitted))+
-			stat_qq(size=1,pch=21)+
+			stat_qq(size=1,pch=21,col = '#3A6C74', fill = '#3A6C74')+
 			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
 			stat_qq_line(linetype=2, col='red')+
 			theme_bw()
@@ -248,14 +252,14 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm,patchw
 
 	# plot
 	boxplot<- ggplot()+
-		geom_boxplot(data = pred, aes(y = log(maxN_preds+1)), fill = 'orange', alpha = 0.2)+
-		geom_jitter(data = b, aes(x = 0, y = log(1+maxN)), pch = 19, alpha = 0.75,col='orange3')+
+		geom_boxplot(data = pred, aes(y = log(maxN_preds+1)), fill = '#3A6C74', alpha = 0.2)+
+		geom_jitter(data = b, aes(x = 0, y = log(1+maxN)), pch = 19, alpha = 0.75,,col = '#3A6C74')+
 		theme_bw()+
 		theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())+
 		labs(y = 'MaxN (log)', x = NULL)+
 		ggtitle('Simplified')
 
-	ggsave(boxplot,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/predsVSraw_maxN_simplifiedBRT.png',device='png',units='in',height=6,width=5,dpi=850)
+	ggsave(boxplot,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/predsVSraw_maxN_simplifiedBRT.png',device='png',units='in',height=4,width=4.5,dpi=850)
 
 
 
@@ -290,6 +294,8 @@ pacman::p_load(tidyverse,sf,ggplot2,gridExtra,flextable,sf,ggsn,dismo,gbm,patchw
 	gerrfull <- readRDS('resource_chp3/model_RDS/gerrPoisson_brt_tc3_lr0001_poisson_NoSeason_jun24.RDS')
 
 	spp.hab.labels<-(c('dist2shore'='Dist. to Shore (m)', 'prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
+
+
 	gerr.hab.labels<-(c('prp_lds'='Prop. of \n\ Low Density \n\ Seagrass','dist2shore'='Dist. to Shore (m)','prp_mds'='Prop. of  \n\ Medium Density \n\ Seagrass','prp_hds'='Prop. of  \n\ High Density \n\ Seagrass'))
 
 # Influence of vars 

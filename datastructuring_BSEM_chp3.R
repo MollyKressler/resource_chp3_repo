@@ -36,6 +36,8 @@
 
 ## June 2024: updating prey data based on only Driscolls BRUVs. 
 
+## July 2024: updating prey data based on Driscolls 2018 bruvs and pulically available Bullock et al. Anim. Behv. 2024 data from 2014 bruvs. 
+
 
 ########################################################
 ########################################################
@@ -95,6 +97,21 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		st_write(newhex, 'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv', driver = 'CSV')
 		st_write(newpoint, 'standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.shp', driver = 'ESRI Shapefile')
 		st_write(newpoint, 'standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv', driver = 'CSV')
+
+
+	### 
+	# - hexdata has duplicated rows, reduce down with distinct(jcode)
+		hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.numeric(jcode)) # updated may 2024 to include relative predation pressure (and relPropPD)
+
+		hexdata<- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'), crs = 'WGS84')
+		hex2 <- hexdata %>% 
+			distinct(jcode, .keep_all = TRUE)
+		hex2
+
+		write_csv(hex2, 'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv', )
+		st_write(hex2, 'data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp', driver = 'ESRI Shapefile')
+
+
 
 
 #####################

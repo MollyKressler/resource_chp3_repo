@@ -15,11 +15,11 @@ https://rdrr.io/cran/MuMIn/man/dredge.html
 pacman::p_load(tidyverse,MuMIn,ggplot2,flextable,cowplot,patchwork,lme4,stats,ggeffects,gtsummary)
   options(na.action = "na.fail")
 
-setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd/resource_chp3')
+setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv') 
 
-hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_June24.csv')%>%
+hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%
 		mutate(jcode=as.numeric(jcode))
 
 names(hexdata)
@@ -42,8 +42,6 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 		# global model:   fish ~ depth * dist2jetty * dist2shore * distcmg 
 
 	#	3. Large Shark detections: predict there will be more large sharks with inceasing depth and distance from the shoreline and the central mangrove forest. Predict that distance to jetty will be inversely related to large shark presence. 
-
-
 
 
 #############################
@@ -83,158 +81,158 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 
 #############################
-## - Hypothesis 2 : Juveniles and fish, distances only as predictors.
+## - Hypothesis 2 : Fish and abiotics 
 #############################
 
-  ## sharks, point - updated 17/11/2023
-	sharkP.glm.abiotics <- glm(standard.shark ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
-	sharkP.glm.fishplusabiotics <- glm(standard.shark ~ standard.fish + standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
-	sharkP.glm.pressplusabiotics <- glm(standard.shark ~ standard.press + standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
+	 ## brief foray into juvenile sharks 
+	  ## sharks, point - updated 17/11/2023
+		sharkP.glm.abiotics <- glm(standard.shark ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
+		sharkP.glm.fishplusabiotics <- glm(standard.shark ~ standard.fish + standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
+		sharkP.glm.pressplusabiotics <- glm(standard.shark ~ standard.press + standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty, data=pointdata) #define the global model
 
-	sharkP.dredge.abiotics <- dredge(sharkP.glm.abiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
-	sharkP.dredge.fishplusabiotics <- dredge(sharkP.glm.fishplusabiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
-	sharkP.dredge.pressplusabiotics <- dredge(sharkP.glm.pressplusabiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
+		sharkP.dredge.abiotics <- dredge(sharkP.glm.abiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
+		sharkP.dredge.fishplusabiotics <- dredge(sharkP.glm.fishplusabiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
+		sharkP.dredge.pressplusabiotics <- dredge(sharkP.glm.pressplusabiotics, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
 
-	abiotics.sharkP.modelsranked.tabled <- sharkP.dredge.abiotics%>%
-		as_tibble %>%
-	  mutate(weight=round(weight,9), model = 1:n()) %>%
-	  mutate(Null = ifelse(df == 2, 1, NA))%>%
-	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
-	  filter(!is.na(estimate)) %>%
-	  group_by(pick(2,3,4,5,6,7,8)) %>%
-	  summarise(model = paste(name, collapse = ' + ')) %>%
-	  ungroup() %>%
-	  select(model, everything())%>% 
-	  arrange(-weight) %>%
-	  flextable()%>%	  
-	  theme_zebra()%>%
-	  set_header_labels(model = 'Model',delta = 'dAICc')%>%
-	  align(align = 'left', part = 'all')%>%
-	  color(color='black',part='all')%>%
-	  fontsize(size = 10, part = 'all')%>%
-	  autofit()
+		abiotics.sharkP.modelsranked.tabled <- sharkP.dredge.abiotics%>%
+			as_tibble %>%
+		  mutate(weight=round(weight,9), model = 1:n()) %>%
+		  mutate(Null = ifelse(df == 2, 1, NA))%>%
+		  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
+		  filter(!is.na(estimate)) %>%
+		  group_by(pick(2,3,4,5,6,7,8)) %>%
+		  summarise(model = paste(name, collapse = ' + ')) %>%
+		  ungroup() %>%
+		  select(model, everything())%>% 
+		  arrange(-weight) %>%
+		  flextable()%>%	  
+		  theme_zebra()%>%
+		  set_header_labels(model = 'Model',delta = 'dAICc')%>%
+		  align(align = 'left', part = 'all')%>%
+		  color(color='black',part='all')%>%
+		  fontsize(size = 10, part = 'all')%>%
+		  autofit()
 
-	fishplusbiotics.sharkP.modelsranked.tabled <- sharkP.dredge.fishplusabiotics%>%
-		as_tibble %>%
-	  mutate(weight=round(weight,9), model = 1:n()) %>%
-	  mutate(Null = ifelse(df == 2, 1, NA))%>%
-	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
-	  filter(!is.na(estimate)) %>%
-	  group_by(pick(2,3,4,5,6,7,8)) %>%
-	  summarise(model = paste(name, collapse = ' + ')) %>%
-	  ungroup() %>%
-	  select(model, everything())%>% 
-	  arrange(-weight) %>%
-	  flextable()%>%	  
-	  theme_zebra()%>%
-	  set_header_labels(model = 'Model',delta = 'dAICc')%>%
-	  align(align = 'left', part = 'all')%>%
-	  color(color='black',part='all')%>%
-	  fontsize(size = 10, part = 'all')%>%
-	  autofit()
+		fishplusbiotics.sharkP.modelsranked.tabled <- sharkP.dredge.fishplusabiotics%>%
+			as_tibble %>%
+		  mutate(weight=round(weight,9), model = 1:n()) %>%
+		  mutate(Null = ifelse(df == 2, 1, NA))%>%
+		  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
+		  filter(!is.na(estimate)) %>%
+		  group_by(pick(2,3,4,5,6,7,8)) %>%
+		  summarise(model = paste(name, collapse = ' + ')) %>%
+		  ungroup() %>%
+		  select(model, everything())%>% 
+		  arrange(-weight) %>%
+		  flextable()%>%	  
+		  theme_zebra()%>%
+		  set_header_labels(model = 'Model',delta = 'dAICc')%>%
+		  align(align = 'left', part = 'all')%>%
+		  color(color='black',part='all')%>%
+		  fontsize(size = 10, part = 'all')%>%
+		  autofit()
 
-	pressplusbiotics.sharkP.modelsranked.tabled <- sharkP.dredge.pressplusabiotics%>%
-		as_tibble %>%
-	  mutate(weight=round(weight,9), model = 1:n()) %>%
-	  mutate(Null = ifelse(df == 2, 1, NA))%>%
-	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
-	  filter(!is.na(estimate)) %>%
-	  group_by(pick(2,3,4,5,6,7,8)) %>%
-	  summarise(model = paste(name, collapse = ' + ')) %>%
-	  ungroup() %>%
-	  select(model, everything())%>% 
-	  arrange(-weight) %>%
-	  flextable()%>%	  
-	  theme_zebra()%>%
-	  set_header_labels(model = 'Model',delta = 'dAICc')%>%
-	  align(align = 'left', part = 'all')%>%
-	  color(color='black',part='all')%>%
-	  fontsize(size = 10, part = 'all')%>%
-	  autofit()
+		pressplusbiotics.sharkP.modelsranked.tabled <- sharkP.dredge.pressplusabiotics%>%
+			as_tibble %>%
+		  mutate(weight=round(weight,9), model = 1:n()) %>%
+		  mutate(Null = ifelse(df == 2, 1, NA))%>%
+		  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
+		  filter(!is.na(estimate)) %>%
+		  group_by(pick(2,3,4,5,6,7,8)) %>%
+		  summarise(model = paste(name, collapse = ' + ')) %>%
+		  ungroup() %>%
+		  select(model, everything())%>% 
+		  arrange(-weight) %>%
+		  flextable()%>%	  
+		  theme_zebra()%>%
+		  set_header_labels(model = 'Model',delta = 'dAICc')%>%
+		  align(align = 'left', part = 'all')%>%
+		  color(color='black',part='all')%>%
+		  fontsize(size = 10, part = 'all')%>%
+		  autofit()
 
-	save_as_image(abiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_abiotics.sharkP.modelsranked.png',webshot='webshot')
-	save_as_image(fishplusbiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_fishplusbiotics.sharkP.modelsranked.png',webshot='webshot')
-	save_as_image(pressplusbiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_pressplusbiotics.sharkP.modelsranked.png',webshot='webshot')
-
-
-# make table
-	a1 <- glm(standard.shark ~ standard.depth + standard.dist2shore + standard.distcmg * standard.dist2jetty, data=pointdata)
-	a2 <- get.models(sharkP.dredge.fishplusabiotics,1)[[1]]
-	a3 <- get.models(sharkP.dredge.pressplusabiotics,1)[[1]]
-	models <- c(sgm, fm, pm)
-	
-	a1f <- flextable::as_flextable(a1)
-	a2f <- flextable::as_flextable(a2)
-	a3f <- flextable::as_flextable(a3)
-
-	a1t <- tbl_regression(a1,exp=FALSE,conf_level=0.95,label=list(standard.dist2shore='Dist. to Shore',
-		standard.dist2jetty='Dist. to Jetty',
-		standard.distcmg='Dist. to Mangrove',
-		standard.depth='Depth',
-		'standard.distcmg*standard.dist2jetty'='Dist. to Jetty * Dist. to Central Mangroves'))%>%
-		bold_p(t=0.05)
-
-	a2t <- tbl_regression(a2, exp=FALSE,conf_level=0.95,label=list(standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.dist2shore*standard.distcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
-		bold_p(t=0.05)	
-	a3t <- tbl_regression(a3, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.distcmg='Dist. to Central Mangroves','standard.depth*standard.dist2jetty'='Depth * Dist. to Jetty'))%>%
-		bold_p(t=0.05)
-
-	# side by side
-	tbl_merge(tbls = list(s1,f1), tab_spanner = c('Hypothesis 1', 'Hypothesis 2'))
-	# stacked 
-	stacked <- tbl_stack(list(s1,f1,p1),group_header=c('1','2','3'))%>%
-	bold_levels()
-	
-	show_header_names(stacked)
- 
-	responses <- as_tibble(x=c('Seagrasses','Fish','Large Sharks'))%>%rename(Respones=value)
-
-	stacked.summary<-stacked%>%
-		modify_header(groupname_col = '**Hypothesis**',label='**Predictor**')%>%
-		as_flex_table()%>%	
-		autofit()
+		save_as_image(abiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_abiotics.sharkP.modelsranked.png',webshot='webshot')
+		save_as_image(fishplusbiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_fishplusbiotics.sharkP.modelsranked.png',webshot='webshot')
+		save_as_image(pressplusbiotics.sharkP.modelsranked.tabled,'hypotesting_dredge_results/dredged_results_pressplusbiotics.sharkP.modelsranked.png',webshot='webshot')
 
 
-	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_sept2023.png' ,webshot='webshot')
+		# make table
+			a1 <- glm(standard.shark ~ standard.depth + standard.dist2shore + standard.distcmg * standard.dist2jetty, data=pointdata)
+			a2 <- get.models(sharkP.dredge.fishplusabiotics,1)[[1]]
+			a3 <- get.models(sharkP.dredge.pressplusabiotics,1)[[1]]
+			models <- c(sgm, fm, pm)
+			
+			a1f <- flextable::as_flextable(a1)
+			a2f <- flextable::as_flextable(a2)
+			a3f <- flextable::as_flextable(a3)
+
+			a1t <- tbl_regression(a1,exp=FALSE,conf_level=0.95,label=list(standard.dist2shore='Dist. to Shore',
+				standard.dist2jetty='Dist. to Jetty',
+				standard.distcmg='Dist. to Mangrove',
+				standard.depth='Depth',
+				'standard.distcmg*standard.dist2jetty'='Dist. to Jetty * Dist. to Central Mangroves'))%>%
+				bold_p(t=0.05)
+
+			a2t <- tbl_regression(a2, exp=FALSE,conf_level=0.95,label=list(standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves',standard.hexsgPCA1='Seagrass PCA','standard.dist2shore*standard.distcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
+				bold_p(t=0.05)	
+			a3t <- tbl_regression(a3, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.distcmg='Dist. to Central Mangroves','standard.depth*standard.dist2jetty'='Depth * Dist. to Jetty'))%>%
+				bold_p(t=0.05)
+
+			# side by side
+			tbl_merge(tbls = list(s1,f1), tab_spanner = c('Hypothesis 1', 'Hypothesis 2'))
+			# stacked 
+			stacked <- tbl_stack(list(s1,f1,p1),group_header=c('1','2','3'))%>%
+			bold_levels()
+			
+			show_header_names(stacked)
+		 
+			responses <- as_tibble(x=c('Seagrasses','Fish','Large Sharks'))%>%rename(Respones=value)
+
+			stacked.summary<-stacked%>%
+				modify_header(groupname_col = '**Hypothesis**',label='**Predictor**')%>%
+				as_flex_table()%>%	
+				autofit()
 
 
+			save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_sept2023.png' ,webshot='webshot')
 
+			summary(get.models(shark.dredge,1)[[1]]) #"best" model
+			best.shark <- get.models(shark.dredge,1)[[1]]
 
-	summary(get.models(shark.dredge,1)[[1]]) #"best" model
-	best.shark <- get.models(shark.dredge,1)[[1]]
+			## try with a random effect of site 
+			sharkP.glmer <- lmer(standard.shark ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty + (1|buffIDnum), data=pointdata) #define the global model
 
-	## try with a random effect of site 
-	sharkP.glmer <- lmer(standard.shark ~ standard.depth * standard.dist2shore * standard.distcmg * standard.dist2jetty + (1|buffIDnum), data=pointdata) #define the global model
+			sharkP.glmer.dredge <- dredge(sharkP.glmer, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,5)) # dredge from the global model
 
-	sharkP.glmer.dredge <- dredge(sharkP.glmer, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,5)) # dredge from the global model
+			sharkP.glmer.modelsranked.tabled <- sharkP.glmer.dredge%>%
+				as_tibble %>%
+			  mutate(weight=round(weight,9), model = 1:n()) %>%
+			  mutate(Null = ifelse(df == 3, 1, NA))%>%
+			  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
+			  filter(!is.na(estimate)) %>%
+			  group_by(pick(2,3,4,5,6,7,8)) %>%
+			  summarise(model = paste(name, collapse = ' + ')) %>%
+			  ungroup() %>%
+			  select(model, everything())%>% 
+			  arrange(-weight) %>%
+			  flextable()%>%	  
+			  theme_zebra()%>%
+			  set_header_labels(model = 'Model',delta = 'dAICc')%>%
+			  align(align = 'left', part = 'all')%>%
+			  color(color='black',part='all')%>%
+			  fontsize(size = 10, part = 'all')%>%
+			  autofit()
 
-	sharkP.glmer.modelsranked.tabled <- sharkP.glmer.dredge%>%
-		as_tibble %>%
-	  mutate(weight=round(weight,9), model = 1:n()) %>%
-	  mutate(Null = ifelse(df == 3, 1, NA))%>%
-	  pivot_longer(cols=starts_with(c('st','Null')),values_to='estimate')%>%	  
-	  filter(!is.na(estimate)) %>%
-	  group_by(pick(2,3,4,5,6,7,8)) %>%
-	  summarise(model = paste(name, collapse = ' + ')) %>%
-	  ungroup() %>%
-	  select(model, everything())%>% 
-	  arrange(-weight) %>%
-	  flextable()%>%	  
-	  theme_zebra()%>%
-	  set_header_labels(model = 'Model',delta = 'dAICc')%>%
-	  align(align = 'left', part = 'all')%>%
-	  color(color='black',part='all')%>%
-	  fontsize(size = 10, part = 'all')%>%
-	  autofit()
+			  summary(get.models(sharkP.glmer.dredge,1)[[1]]) #"best" model
+			best.shark <- get.models(sharkP.glmer.dredge,1)[[1]]
+		 
+			  save_as_image(sharkP.glmer.modelsranked.tabled,'dredged_GLMER_1BUFFID_results_SharksPOINTresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
 
-	  summary(get.models(sharkP.glmer.dredge,1)[[1]]) #"best" model
-	best.shark <- get.models(sharkP.glmer.dredge,1)[[1]]
- 
-	  save_as_image(sharkP.glmer.modelsranked.tabled,'dredged_GLMER_1BUFFID_results_SharksPOINTresponse_depth_dist2shore_distcmg_dist2jetty.png',webshot='webshot')
-
-
+	######
   ## fish, hex
-	fish.glm <- glm(standard.hexfish ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.hexdist2jetty + standard.sgPCA, data=hexdata) #define the global model
+
+	#####
+	fish.glm <- glm(standard.hexfish ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.dist2jetty + standard.sgPCA1, data=hexdata) #define the global model
 
 	fish.dredge <- dredge(fish.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
 
@@ -258,11 +256,11 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	  fontsize(size = 10, part = 'all')%>%
 	  autofit()
 
-	  save_as_image(fish.modelsranked.tabled,'dredged_results_fishHEXresponse_June2024.png',webshot='webshot')
+	  save_as_image(fish.modelsranked.tabled,'resource_chp3/hypotesting_dredge_results/dredged_results_fishHEXresponse_July2024.png',webshot='webshot')
 	get.models(fish.dredge,1)[[1]]
 
 
-	## gerries only, SD only 
+	## deprecated - gerries only, SD only 
 		gerr.glm <- glm(standard.hexgerr ~ standard.depth * standard.hexdist2shore * standard.hexdistcmg * standard.hexdist2jetty + standard.sgPCA, data=hexdata) #define the global model
 
 		gerr.dredge <- dredge(gerr.glm, beta='sd', evaluate=TRUE, trace=FALSE, extra='R^2',m.lim=c(0,4)) # dredge from the global model
@@ -339,10 +337,12 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	sgm <- glm(standard.sgPCA1 ~ standard.dist2jetty + standard.hexdist2shore + standard.hexdistcmg + standard.hexdist2shore*standard.hexdistcmg, data=hexdata, family=gaussian)
 
 # H2: fish and distance metrics
+		fm <- get.models(fish.dredge,1)[[1]]
+		fm
+	# deprecated
+		fm 	<- glm(standard.hexfish ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian)
 
-	fm <- glm(standard.hexfish ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian)
-
-	gm <- glm(standard.hexgerr ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian) # SD gerries only 
+		gm <- glm(standard.hexgerr ~ standard.hexdist2jetty + standard.hexdistcmg + standard.sgPCA + standard.hexdist2jetty*standard.hexdistcmg, data=hexdata, family=gaussian) # SD gerries only 
 
 # H3: large sharks and distance metrics
 
@@ -350,19 +350,19 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	pmm<-glm(standard.press ~ standard.depth + standard.dist2jetty + standard.distcmg + standard.depth*standard.dist2jetty, data=pointdata)
 
 # save the models as RDS 
-	saveRDS(sgm,'hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	saveRDS(fm,'hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
-	saveRDS(gm,'hypotesting_dredge_results/gerries_sdonly_glm_hypotesting_distancemetrics_june24.RDS')
-	saveRDS(pm,'hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
+	saveRDS(sgm,'resource_chp3/hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
+	saveRDS(fm,'resource_chp3/hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_MaxN_July24.RDS')
+	#saveRDS(gm,'resource_chp3/hypotesting_dredge_results/gerries_sdonly_glm_hypotesting_distancemetrics_june24.RDS')
+	saveRDS(pm,'resource_chp3/hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 #############################
 ## - Summary table of GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
 #############################
 
 # read in model RDS
-	sgm <- readRDS('hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
-	pm <- readRDS('hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
+	sgm <- readRDS('resource_chp3/hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
+	fm <- readRDS('resource_chp3/hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_MaxN_July24.RDS')
+	pm <- readRDS('resource_chp3/hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
 
 # make table
 	models <- c(sgm, fm, pm)
@@ -374,9 +374,7 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 
 	s1 <- tbl_regression(sgm,exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.hexdistcmg='Dist. to Central Mangroves',standard.dist2jetty='Dist. to Jetty','standard.hexdist2shore*standard.hexdistcmg'='Dist. to Shore * Dist. to Central Mangroves'))%>%
 		bold_p(t=0.05)
-	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdistcmg='Dist. to Central Mangroves',standard.hexdist2jetty='Dist. to Nearest Jetty',standard.hexsgPCA='Seagrass PCA','standard.hexdist2jetty*standard.hexdistcmg'='Dist. to Nearest Jetty * Dist. to Central Mangroves'))%>%
-		bold_p(t=0.05)	
-	g1 <- tbl_regression(gm, exp=FALSE,conf_level=0.95,label=list(standard.hexdistcmg='Dist. to Central Mangroves',standard.hexdist2jetty='Dist. to Nearest Jetty',standard.sgPCA='Seagrass PCA','standard.hexdist2jetty*standard.hexdistcmg'='Dist. to Nearest Jetty * Dist. to Central Mangroves'))%>%
+	f1 <- tbl_regression(fm, exp=FALSE,conf_level=0.95,label=list(standard.hexdist2shore='Dist. to Shore',standard.dist2jetty='Dist. to Nearest Jetty',standard.sgPCA1='Seagrass PCA','standard.dist2jetty:standard.hexdist2shore'='Dist. to Nearest Jetty * Dist. to Shore'))%>%
 		bold_p(t=0.05)	
 	p1 <- tbl_regression(pm, exp=FALSE,conf_level=0.95, label=list(standard.depth='Depth',standard.dist2jetty='Dist. to Jetty',standard.dist2shore='Dist. to Shore',standard.distcmg='Dist. to Central Mangroves', 'standard.depth:standard.dist2jetty' = ' Depth * Dist. to Jetty'))%>%
 		bold_p(t=0.05)
@@ -399,88 +397,84 @@ write.csv(sub_sample,'subsample_hexdata_formodeltesting.csv')
 	## AIC of three. mdoels relative to each other
 	AIC(sgm, fm, pm)
 
-	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_June2024.png' ,webshot='webshot')
-	save_as_docx(stacked.summary,path = 'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_June2024.docx')
+	save_as_image(stacked.summary,'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_July2024.png' ,webshot='webshot')
+	save_as_docx(stacked.summary,path = 'hypotesting_dredge_results/stackedsummarytables_hypotheses_chp3_seagrasses_fish_largesharks_glms_July2024.docx')
 
 #############################
 ## - Residuals checking: histograms of residuals, and standardsised residuals versus fitted, looking for heteroscedasticity
-## 19 Feb 2024, following feedback from RBS
-	
-	pacman::p_load(tidyverse, sf, ggplot2, cowplot, patchwork,lme4)
-	# color guide
-	  navy: '#3a6c74'; 
-	  #for multiple colors: 
-	  c('#3a6c74','#708d8e','#3cbcfc')
-	
-	sgm <- readRDS('hypotesting_dredge_results/seagrasses_glm_hypotesting_distancemetrics_sept23.RDS')
-	fm <- readRDS('hypotesting_dredge_results/fishesmetric_glm_hypotesting_distancemetrics_june24.RDS')
-	pm <- readRDS('hypotesting_dredge_results/largesharks_relativerisk_glm_hypotesting_distancemetrics_may24.RDS')
+#############################
+    
+    # calculate fitted and pull residuals 
+		R1_sgm <- as_tibble(resid(sgm))%>%rename(resids = value)
+		F1_sgm <- as_tibble(predict(sgm))%>%rename(fitted = value)
+		diag_sgm <- bind_cols(F1_sgm, R1_sgm)
 
-	hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_June24.csv')%>%
-		mutate(jcode=as.numeric(jcode))
+		R1_fm <- as_tibble(resid(fm))%>%rename(resids = value)
+		F1_fm <- as_tibble(predict(fm))%>%rename(fitted = value)
+		diag_fm <- bind_cols(F1_fm, R1_fm)
 
-	pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')
-	nrow(pointdata)
-	
-  # histogram of residuals
-	sgm.histresiduals <- ggplot(data = hexdata, aes(x = sgm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
-	  labs(title = 'Seagrass PCA', x = 'Residuals', y = 'Frequency')+
-	  theme_bw()
-	fm.histresiduals <- ggplot(data = hexdata, aes(x = fm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
-	  labs(title = 'Fish Metric', x = 'Residuals', y = 'Frequency')+
-	  theme_bw()
-	gm.histresiduals <- ggplot(data = hexdata, aes(x = gm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
-	  labs(title = 'Fish Metric', x = 'Residuals', y = 'Frequency')+
-	  theme_bw()
-	pm.histresiduals <- ggplot(data = pointdata, aes(x = pm$residuals)) +
-	  geom_histogram(fill = '#708d8e', color = '#3a6c74', binwidth = 0.3) +
-	  labs(title = 'Relative Risk', x = 'Residuals', y = 'Frequency')+
-	  theme_bw()
-	
-	stacked.bedtdredge.residualsHistograms <- sgm.histresiduals / fm.histresiduals / pm.histresiduals
-	
-	ggsave(stacked.bedtdredge.residualsHistograms, file = 'hypotesting_dredge_results/dredgebestmodel_HISTresiduals_fish_sg_relativerisk_JUNE24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
-	
-	## residuals versus fitted, plots
-    sgm.resids <- resid(sgm)
-    fm.resids <- resid(fm)
-    gm.resids <- resid(gm)
-    pm.resids <- resid(pm)
-    
-    sgm.fitted.resids <- ggplot(data = sgm, aes(x=.fitted, y=.resid))+
-      geom_point(color = '#3a6c74') +
-      geom_hline(yintercept = 0,)+
-      labs(title='', x='Fitted', y='Residuals')+
-      theme_bw()
-    fm.fitted.resids <- ggplot(data = fm, aes(x=.fitted, y=.resid))+
-      geom_point(color = '#3a6c74') +
-      geom_hline(yintercept = 0,)+
-      labs(title='', x='Fitted', y='Residuals')+
-      theme_bw()
-    gm.fitted.resids <- ggplot(data = gm, aes(x=.fitted, y=.resid))+
-      geom_point(color = '#3a6c74') +
-      geom_hline(yintercept = 0,)+
-      labs(title='', x='Fitted', y='Residuals')+
-      theme_bw()
-    pm.fitted.resids <- ggplot(data = pm, aes(x=.fitted, y=.resid))+
-      geom_point(color = '#3a6c74') +
-      geom_hline(yintercept = 0,)+
-      labs(title='', x='Fitted', y='Residuals')+
-      theme_bw()
+		R1_pm <- as_tibble(resid(pm))%>%rename(resids = value)
+		F1_pm <- as_tibble(predict(pm))%>%rename(fitted = value)
+		diag_pm <- bind_cols(F1_pm, R1_pm)
 
-    
-    stacked.bestdredge.residualsVSfitted <- sgm.fitted.resids / fm.fitted.resids / pm.fitted.resids
-    
-    ggsave(stacked.bestdredge.residualsVSfitted, file = 'hypotesting_dredge_results/dredgebestmodel_residualsVSfitted_fish_sg_relativerisk_June24.png', device = 'png', units = 'in',height = 6.5, width = 3, dpi=950)
-    
-    
+		# plots 
+		resVfit_sgm <- ggplot(data = diag_sgm,aes(x= fitted, y = resids))+
+			geom_point(col = '#3A6C74', fill = '#3A6C74')+ 
+			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
+			theme_bw()+
+			ggtitle('Seagrasses')
+		res_sgm_hist <- ggplot(data = R1_sgm, aes(x = resids))+ 
+			geom_histogram(binwidth = nrow(R1_sgm)/10000,col = '#3A6C74', fill = '#3A6C74')+ 
+			theme_bw()+
+			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
+		res_sgm_qq <- ggplot(data=F1_sgm, aes(sample = fitted))+
+			stat_qq(size=2,pch=21,col = '#3A6C74')+
+			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+			stat_qq_line(linetype=2, col='red')+
+			theme_bw()
+
+		resVfit_fm <- ggplot(data = diag_fm,aes(x= fitted, y = resids))+
+			geom_point(col = '#3A6C74', fill = '#3A6C74')+ 
+			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
+			theme_bw()+
+			ggtitle('Prey MaxN')
+		res_fm_hist <- ggplot(data = R1_fm, aes(x = resids))+ 
+			geom_histogram(binwidth = nrow(R1_fm)/100000,col = '#3A6C74', fill = '#3A6C74')+ 
+			theme_bw()+
+			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
+		res_fm_qq <- ggplot(data=F1_fm, aes(sample = fitted))+
+			stat_qq(size=2,pch=21,col = '#3A6C74')+
+			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+			stat_qq_line(linetype=2, col='red')+
+			theme_bw()
+
+		resVfit_pm <- ggplot(data = diag_pm,aes(x= fitted, y = resids))+
+			geom_point(col = '#3A6C74', fill = '#3A6C74')+ 
+			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
+			theme_bw()+
+			ggtitle('Predation Risk')
+		res_pm_hist <- ggplot(data = R1_pm, aes(x = resids))+ 
+			geom_histogram(binwidth = nrow(R1_pm)/1000,col = '#3A6C74', fill = '#3A6C74')+ 
+			theme_bw()+
+			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
+		res_pm_qq <- ggplot(data=F1_pm, aes(sample = fitted))+
+			stat_qq(size=2,pch=21,col = '#3A6C74')+
+			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
+			stat_qq_line(linetype=2, col='red')+
+			theme_bw()
+
+		diagnostics_sgm <- resVfit_sgm+res_sgm_hist+res_sgm_qq
+		diagnostics_fm <- resVfit_fm+res_fm_hist+res_fm_qq
+		diagnostics_pm <- resVfit_pm+res_pm_hist+res_pm_qq
+
+		ggsave(diagnostics_sgm, file = 'resource_chp3/hypotesting_dredge_results/diagnostic_plots_sagrasses_hypotestingGLM_july2024.png', device = 'png', unit = 'in', width = 8, height = 4, dpi = 850)
+		ggsave(diagnostics_fm, file = 'resource_chp3/hypotesting_dredge_results/diagnostic_plots_fishMaxN_hypotestingGLM_july2024.png', device = 'png', unit = 'in', width = 8, height = 4, dpi = 850)
+		ggsave(diagnostics_pm, file = 'resource_chp3/hypotesting_dredge_results/diagnostic_plots_relrisk_hypotestingGLM_july2024.png', device = 'png', unit = 'in', width = 8, height = 4, dpi = 850)
+
     
 	
 #############################
-## - Prediction plots GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
+## - (as of July'24, not in the manuscript) Prediction plots GLM/GLMMs of 'best' models: the effect of distance metrics on predictor variables
 #############################
 
 # read in model RDS

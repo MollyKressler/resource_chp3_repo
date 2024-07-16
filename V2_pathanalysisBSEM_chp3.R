@@ -30,7 +30,7 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 ### Define Sharkiness
 ## counts of detections per individual per Site (buffer/receiver)
 
-pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_June24.csv')
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv')
   			
 stopifnot(nrow(pointdata)==560) # check 
 sapply(pointdata,class)
@@ -45,18 +45,17 @@ summary(pointdata)
   head(pointdata)
 
   
-  pits <- unique(pointdata$PIT)
-	tags <- list(paste0('Tag',seq(1:16)))
-	both <- bind_cols(pits,tags) %>%rename(PIT=...1,tagID=...2)
-	pointdata <- left_join(pointdata,both) %>%relocate(tagID, .after=PIT)
-	head(pointdata)
-	pointdata%>%filter(PIT=='molly5') # check that PIT is gettin assigned the same Tag ID the whole way through
-
-
 	# Table of random sample of data frame for graphical methods figure 
+  pits <- unique(pointdata$PIT)
+  tags <- list(paste0('Tag',seq(1:16)))
+  both <- bind_cols(pits,tags) %>%rename(PIT=...1,tagID=...2)
+  pointdata <- left_join(pointdata,both) %>%relocate(tagID, .after=PIT)
+  head(pointdata)
+  pointdata%>%filter(PIT=='molly5') # check that PIT is gettin assigned the same Tag ID the whole way through
+
 	pointflex <- pointdata%>% 
 		as_tibble%>%
-    dplyr::select(-PIT,-z, -buff_ar, -rID,-ndetts, -relPropPD,-total,-sqzrisk,-logit.sqzrisk, -standard.press, -standard.larges)%>%
+    dplyr::select(-PIT,-z, -buff_ar, -rID,-ndetts, -relPropPD,-total,-sqzrisk,-logit.sqzrisk, -standard.press, -standard.larges, -maxN_preds)%>%
 		rename('Tag' = 'tagID')%>%
 		slice(1:5)%>% 
 		flextable()%>%
@@ -73,15 +72,15 @@ summary(pointdata)
 ####################################################
 ###### DF 2, for process model for fishiness  ######
 
-hexdata<-read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_JUNE24.csv')%>%mutate(jcode=as.numeric(jcode)) # updated may 2024 to include relative predation pressure (and relPropPD)
-summary(hexdata)
+hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.numeric(jcode)) # updated may 2024 to include relative predation pressure (and relPropPD)
+nrow(hexdata%>%distinct(jcode))
 stopifnot(nrow(hexdata)==2663) # check 
 
 
 	# Table of random sample of data frame for graphical methods figure 
 	hexflex <- hexdata%>%
 	dplyr::rename('Hex.No' = 'jcode')%>%
-    dplyr::select(-rID,-ndetts, -pressur,-relPropPD,-total,-logit.sqzrisk)%>%
+    dplyr::select(-rID,-ndetts, -pressur,-relPropPD,-total,-Name)%>%
 		slice(1:5)%>% 
 		flextable()%>%
 		theme_zebra()%>%
@@ -100,7 +99,7 @@ stopifnot(nrow(hexdata)==2663) # check
  
     
 ##################### 
-## - MODEL5A:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure. Updated June 2024 with only Driscoll BRUVs, and only Gerreidae for fish data. 
+## - MODEL5A:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure. Updated July 2024 with Driscoll BRUVS from 2018 and Bullock BRUVS from 2014 (from publically available dataset) with maxN calculated for the four families 
     
     modelCode5a<-nimbleCode({
       
@@ -112,11 +111,14 @@ stopifnot(nrow(hexdata)==2663) # check
     for(i in 1:7){
        a[i] ~ dnorm(0,.01) 
       }
-      # prior for intercept - sharks 
-      b ~ dnorm(0,.001)
+    for(i in 1:2){
+       g[i] ~ dnorm(0,.01)# for pred and fish only models, for interpretting coefficients 
+      }
       # prior for residual variance - sharks 
-      tau.shark ~ dgamma(0.01,0.01) # 
+      tau.shark ~ dgamma(0.01,0.01) 
       sigma.shark <- sqrt(1/tau.shark)
+      tau.shark.hex ~ dgamma(0.01, 0.01) # for glm of fish on sharks, at hexagon level
+      sigma.shark.hex <- sqrt(1/tau.shark.hex)
     
     #### prior for predators #### 
     for(i in 1:5){
@@ -132,8 +134,10 @@ stopifnot(nrow(hexdata)==2663) # check
     for(i in 1:B){
       epsi_shark[i]~ dnorm(0,tau.epsi_shark)
     }
+      # prior for intercept - sharks 
+      b ~ dnorm(0,.001)
       tau.epsi_shark ~ dgamma(0.01,0.01)
-       sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
+      sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
     
     #### prior for fishiness (cross metric, hexagons) ####
     for(i in 1:4){
@@ -172,9 +176,13 @@ stopifnot(nrow(hexdata)==2663) # check
     
     ### data model for fishiness - hexagons 
      for(i in 1:hex.N){
-      standard.hexgerr[i] ~ dnorm(hexgerr.mu[i],tau.fish) 
+      standard.hexfish[i] ~ dnorm(fish.mu[i],tau.fish) 
 
-      hexgerr.mu[i] <- d + c[1]*standard.hexdist2jetty[i] + c[2]*standard.hexdistcmg[i] + c[3]*standard.hexsg[i]+ c[4]*standard.hexdist2jetty[i]*standard.hexdistcmg[i]
+      fish.mu[i] <- d + c[1]*standard.hexdist2jetty[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexsg[i]+ c[4]*standard.hexdist2jetty[i]*standard.hexdist2shore[i]
+
+      # glm for the effect of fish (only)
+      standard.shark2[i] ~ dnorm(fishonly.mu[i], tau.shark.hex)
+      fishonly.mu[i] <- d + g[1]*standard.hexfish[i]
     }
   
     ### data model for large shark detectons - point data 
@@ -182,13 +190,18 @@ stopifnot(nrow(hexdata)==2663) # check
       zlogit.sqzrisk[i] ~ dnorm(pred.mu[i], tau.pred)
 
       pred.mu[i] <- f + e[1]*standard.pointdist2shore[i] + e[2]*standard.pointdepth[i]+ e[3]*standard.pointdist2jetty[i] + e[4]*standard.pointdistcmg[i] + e[5]*standard.pointdepth[i]*standard.pointdist2jetty[i]
+
+      ## glm for the effect of predation (only) 
+      standard.shark3[i] ~ dnorm(predonly.mu[i], tau.shark)
+      predonly.mu[i] <-  epsi_shark[buffID[i]] + g[2]*zlogit.sqzrisk.pred[i]
+
      }
 
     ### data model for sharkiness - pointdata
      for(i in 1:point.N){
       standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)   
+      shark.mu[i] <- epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.pointdist2shore[i] + a[3]*standard.pointdistcmg[i] + a[4]*sgPCA1[i] + a[5]*standard.pointdepth[i]+ a[6]*standard.pointdist2jetty[i]+ a[7]*zlogit.sqzrisk[i]
 
-      shark.mu[i] <- b + epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.pointdist2shore[i] + a[3]*standard.pointdistcmg[i] + a[4]*sgPCA1[i] + a[5]*standard.pointdepth[i]+ a[6]*standard.pointdist2jetty[i]+ a[7]*zlogit.sqzrisk[i]
       }  
 
     ######### Derived Parameters #########
@@ -196,18 +209,16 @@ stopifnot(nrow(hexdata)==2663) # check
     ## coefficients for distance metrics are from process models of those predictors
     ## paths 1-3 assess the support of the effect of the primary parameter, e.g. pressure, on juvenile spatial baheviour as that primary parameter is determined/influenced by the abiotic habitat features, e.g. depth  
 
-    path[1] <-  j[1] * j[2] * j[3] * j[4] * a[4]  # seagrass dredge informed path: sg dist2jetty dist2shore distcmg 
+    path[1] <-  j[1] * j[2] * j[3] * a[4]  # seagrass dredge informed path: sg dist2jetty dist2shore distcmg 
 
-    path[2] <-  j[2] * j[3] * c[3] * a[1] # fish dredge informed path: Gerries sg distcmg dist2jetty
+    path[2] <-  j[1] * j[3] * c[3] * a[1] # fish dredge informed path: maxN sg dist2shore dist2jetty
 
-    path[3] <-  e[1] * e[2] * e[3] * e[4] * e[5] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty distcmg
-
-    path[4] <- a[3] * a[6] # refugia and anthropocene - could directly impact movement, so ecologically, a path (disturbance)
+    path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty distcmg
 
     ## need to calculate the values from the abiotics along the paths to the initial parameter, e.g. abtiocs to fishes in path 1. 
 
-    value[1] <-  j[1] * j[2] * j[3] * j[4] # path 2, shore * refuge * jetty
-    value[2] <- e[1] * e[2] * e[3] * e[4] * e[5] # path 3, shore * jetty * depth 
+    value[1] <-  j[1] * j[2] * j[3]  # path 2, shore * refuge * jetty
+    value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
 
   }) # end of model code 
 
@@ -229,16 +240,17 @@ stopifnot(nrow(hexdata)==2663) # check
       standard.pointdepth= pointdata$standard.depth,
       standard.pointdist2jetty= pointdata$standard.dist2jetty,
       zlogit.sqzrisk = pointdata$zlogit.sqzrisk,
+      zlogit.sqzrisk.pred = pointdata$zlogit.sqzrisk,
       standard.larges = pointdata$standard.larges,
+      standard.shark3 = pointdata$standard.shark,
       # hex data 
       standard.hexfish = hexdata$standard.hexfish,
-      standard.hexgerr = hexdata$standard.hexgerr,
       standard.hexdist2shore = hexdata$standard.hexdist2shore,
       standard.hexdistcmg = hexdata$standard.hexdistcmg,
-      standard.hexdist2jetty = hexdata$standard.hexdist2jetty,
-      standard.hexsg = hexdata$standard.sgPCA,
-      standard.hexdist2jetty = hexdata$standard.hexdist2jetty
-    )
+      standard.hexdist2jetty = hexdata$standard.dist2jetty,
+      standard.hexsg = hexdata$standard.sgPCA1,
+      standard.shark2 = hexdata$standard.hexshark    
+      )
     
     init.values5a<-list(a=rnorm(7,0,1),
                         b=rnorm(1),
@@ -248,14 +260,16 @@ stopifnot(nrow(hexdata)==2663) # check
                         f=rnorm(1),
                         j=rnorm(4,0,1),
                         k=rnorm(1),
-                        path=rnorm(4,0,.05),
+                        g=rnorm(2,0,1),
+                        path=rnorm(3,0,.05),
                         value=rnorm(2,0,.05),
                         epsi_shark=rgamma(35,0.01,0.01),
                         tau.shark=rgamma(1,0.01,0.01),
-                       tau.fish=rgamma(1,0.01,0.01),
-                       tau.pred=rgamma(1,0.01,0.01),
-                       tau.epsi_shark=rgamma(1,0.01,0.01),
-                        tau.hexsg=rgamma(1,0.01,0.01)
+                        tau.fish=rgamma(1,0.01,0.01),
+                        tau.pred=rgamma(1,0.01,0.01),
+                        tau.epsi_shark=rgamma(1,0.01,0.01),
+                        tau.hexsg=rgamma(1,0.01,0.01),
+                        tau.shark.hex = rgamma(1, 0.01, 0.01)
     )
     
     ## model4 define and compile
@@ -264,22 +278,22 @@ stopifnot(nrow(hexdata)==2663) # check
     model5a$calculate() # if = NA, indicates missing or invalid initial values, and you have to fix the model until it is numeric.
     model5a$initializeInfo()
     
-    Cm5a<-compileNimble(model5a);beep(2) # compile the model
+    Cm5a<-compileNimble(model5a) # compile the model
 
     
     ##########################
     ## Compile & Run the MCMC
     ##########################
     
-    ## model4
-    conf5a<- configureMCMC(model5a,monitors=c('a','b','c','d','j','k','e','f','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
+    ## model5
+    conf5a<- configureMCMC(model5a,monitors=c('a','b','c','d','j','k','e','f','g','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
     MCMC_model5a <- buildMCMC(conf5a,na.rm=TRUE)
     ccMCMC5a <-compileNimble(MCMC_model5a, project = model5a)
-    samples5a <- runMCMC(ccMCMC5a,niter=20000, nburnin=12000, nchains=3,samplesAsCodaMCMC = TRUE);beep(2) 
+    samples5a <- runMCMC(ccMCMC5a,niter=5000, nburnin=1000, nchains=3,samplesAsCodaMCMC = TRUE) 
 
     summary(samples5a)
     
-    saveRDS(samples5a,'resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter20000_burn12000_chains3_June2024.RDS')
+    saveRDS(samples5a,'resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
     mcmc_summary_Cmodel5a<-MCMCsummary(samples5a,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
       tibble::rownames_to_column()%>%
@@ -311,11 +325,8 @@ stopifnot(nrow(hexdata)==2663) # check
     ## Summary Table & Caterpillar plots with MCMCvis & tidybayes to show small values ##
     ###########################################################
     
-    # import RDS, R Server
-    samplesList5a <- readRDS('mcmcsamples_model5a_niter20000_burn12000_chains3_4may2024.RDS')
-    
     # import RDS, local macbook 
-    samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter20000_burn12000_chains3_June2024.RDS')
+    samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
     mcmc_summary_Cmodel5a_samplesListfromRDS<-MCMCsummary(samplesList5a,round=4,probs=c(0.05,0.95),pg0=TRUE)%>%
       tibble::rownames_to_column()%>%
@@ -336,22 +347,20 @@ stopifnot(nrow(hexdata)==2663) # check
       autofit()
     mcmc_summary_Cmodel5a_samplesListfromRDS
     
-    save_as_image(mcmc_summary_Cmodel5a_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter20000_burn12000_chains3_june2024.png',res=850)  
+    save_as_image(mcmc_summary_Cmodel5a_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter20000_burn12000_chains3_july2024.png',res=850)  
+    save_as_docx(mcmc_summary_Cmodel5a_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter20000_burn12000_chains3_july2024.docx')  
     
     # grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
     
-    d3b <- gather_draws(samplesList4,path[])%>%
+    d5a <- gather_draws(samplesList5a,path[])%>%
       group_by(.chain)%>%
-      mutate(pathID = paste0('path',rep(1:4, each=8000)))%>% 
-      mutate(pathIDnum = rep(1:4, each=8000))%>%
+      mutate(pathID = paste0('path',rep(1:3, each=4000)))%>% 
+      mutate(pathIDnum = rep(1:3, each=4000))%>%
       ungroup() # each path estimate for each chain (of 3) in order, starting with path[1] first estimate in chain 1 
-    head(d3b)
-    summary(d3b)
-    unique(d3b$pathID) # check
     
-    write.csv(d3b,'resource_chp3/nimblemodel_outputs/samples3b_spreadlong_model3b_niter10000_burn2000_chains3_4dec2023.csv')
+    #write.csv(d3b,'resource_chp3/nimblemodel_outputs/samples3b_spreadlong_model3b_niter10000_burn2000_chains3_4dec2023.csv')
     
-    j4_draws <- gather_draws(samplesList4,j[])%>%
+    j4_draws <- gather_draws(samplesList5a,j[])%>%
       group_by(.chain)%>%
       ungroup()
     j4<- as.data.frame(j4_draws[,5])
@@ -366,18 +375,20 @@ stopifnot(nrow(hexdata)==2663) # check
     names(w3b)
     summary(w3b)
     
-    write.csv(w3b,'resource_chp3/nimblemodel_outputs/samples3a_pivotwider_model3a_niter20000_burn2000_chains3_4dec2023.csv')
+    #write.csv(w3b,'resource_chp3/nimblemodel_outputs/samples3a_pivotwider_model3a_niter20000_burn2000_chains3_4dec2023.csv')
     
     # use tidybayes to plot 
     
-    caterpillars <- ggplot(d3b, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value))+
-      stat_pointinterval(.width=c(.50,.95),point_size=1.8)+
+    caterpillars <- ggplot(d5a, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value, col = pathID))+
+      stat_pointinterval(.width=c(.50,.95),point_size=2)+
+      scale_color_manual(values = c('#3A6C74','#FFBD59','#020F75'))+
       ylab('Path ID')+
       xlab('Estimate (mean) & CI (.5,.95)')+
       geom_vline(xintercept=0,linetype=3)+
+      guides(col = 'none')+
       theme_bw()
     caterpillars  
-    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples_model4_niter12000_burn4000_chains3_june2024.png',device='png',dpi=400,width=5,height=5,units='in')
+    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples__model5a_niter20000_burn12000_chains3_july2024.png',device='png',dpi=400,width=5,height=4,units='in')
     
 
 
@@ -1012,12 +1023,14 @@ stopifnot(nrow(hexdata)==2663) # check
 
 		## For local macbook
     samplesList4 <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model4_niter20000_burn12000_chains3_4may2024.RDS')
+    
+    samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
-    pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_may24.csv')
+    pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.shp')
     head(pointdata)
 
-    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
-    hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')
+    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
       rename(standard.hexshark = stndrd_hxs,
         standard.hexfish = stndrd_hxf,
         standard.hexdist2shore = stndrd_h2,
@@ -1031,15 +1044,7 @@ stopifnot(nrow(hexdata)==2663) # check
         relPropPD = rlPrpPD
         )
 
-		## For R Server
-		samplesList4 <- readRDS('mcmcsamples_model4_niter12000_burn4000_chains3_4may2024.RDS')
-		hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')
-	  head(hexdata)	
 	
-	  summary(samplesList3b)
-	head(samplesList3b$chain1)
-	str(samplesList3b)
-
   ## Make test sample data frames - based on the hexagon df
 
   	hexsamp <- hexdata %>%
@@ -1054,12 +1059,12 @@ stopifnot(nrow(hexdata)==2663) # check
   	a1.ch<-c(samplesList4$chain1[,1],samplesList4$chain2[,1],samplesList4$chain3[,1])
 
   	# path 3: e1, e2, e3, e4, e5, a7
-  	e1.ch <-c(samplesList4$chain1[,14], samplesList4$chain2[,14],samplesList4$chain3[,14] )
-  	e2.ch <-c(samplesList4$chain1[,15], samplesList4$chain2[,15],samplesList4$chain3[,15] )
-  	e3.ch <-c(samplesList4$chain1[,16], samplesList4$chain2[,16],samplesList4$chain3[,16] )
-    e4.ch <-c(samplesList4$chain1[,17], samplesList4$chain2[,17],samplesList4$chain3[,17] )
-    e5.ch <-c(samplesList4$chain1[,18], samplesList4$chain2[,18],samplesList4$chain3[,18] )
-  	a7.ch <-c(samplesList4$chain1[,7], samplesList4$chain2[,7],samplesList4$chain3[,7] )
+  	e1.ch <-c(samplesList5a$chain1[,14], samplesList5a$chain2[,14],samplesList5a$chain3[,14] )
+  	e2.ch <-c(samplesList5a$chain1[,15], samplesList5a$chain2[,15],samplesList5a$chain3[,15] )
+  	e3.ch <-c(samplesList5a$chain1[,16], samplesList5a$chain2[,16],samplesList5a$chain3[,16] )
+    e4.ch <-c(samplesList5a$chain1[,17], samplesList5a$chain2[,17],samplesList5a$chain3[,17] )
+    # not in july2024 model5a. e5.ch <-c(samplesList5a$chain1[,18], samplesList5a$chain2[,18],samplesList5a$chain3[,18] )
+  	a7.ch <-c(samplesList5a$chain1[,7], samplesList5a$chain2[,7],samplesList5a$chain3[,7] )
 
   ## Run loops for each path, to calculate path estimate given a hexagon cell
 
@@ -1075,7 +1080,7 @@ stopifnot(nrow(hexdata)==2663) # check
     		# a7 = predator pressure
 
     	## Define size of objects/matrices
-    	J = 3 * 8000 # chains x iterations
+    	J = 3 * 4000 # chains x iterations, 8000 in June, 4000 in July
     	n.hex = nrow(hexdata)	
 
     	## set up prediction df
@@ -1102,12 +1107,13 @@ stopifnot(nrow(hexdata)==2663) # check
     	for(i in 1:n.hex){
     		setTxtProgressBar(pb, i)
     		for(j in 1:J){
-    			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i])+ (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
+    			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
     		}
     	};beep(3)
+          ### not in july2024:  (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i])
 
     	## save calculations
-        saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+        saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model5aJuly2024_calcJuly2024.RData')
         saveRDS(preds.path2,'resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
 
   ## Calculate marginal means, and HDI (highest density intervals)

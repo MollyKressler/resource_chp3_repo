@@ -79,28 +79,30 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 			mutate(var=fct_reorder(var,rel.inf))%>%
 			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
 				geom_bar(stat='identity')+
-				scale_fill_distiller(direction=1,palette='Oranges',limits=c(15,35),guide='none')+
+				scale_fill_distiller(direction=1,palette='Blues',limits=c(15,35),guide='none')+
 				theme_bw()+
 				coord_flip()+
 				scale_x_discrete(labels=hab.labels)+
 				ylab('Relative Influence')+
-				xlab(NULL)	
-		ggsave(n.relinf,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/relative_influence_vars_maxN_july2024.png',device='png',units='in',height=6,width=8,dpi=900)
+				xlab(NULL)+
+				theme(text = element_text(size = 14))
+
+		ggsave(n.relinf,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/relative_influence_vars_maxN_july2024.png',device='png',units='in',height=4,width=5.5,dpi=900)
 		
 		res_n1 <- as_tibble(resid(n1))%>%rename(resids = value)
 		F1 <- as_tibble(predict(n1))%>%rename(fitted = value)
 		diag_n1 <- bind_cols(F1, res_n1)
 
 		resVfit_n1 <- ggplot(data = diag_n1,aes(x= fitted, y = resids))+
-			geom_point()+ 
+			geom_point(col = '#3A6C74', fill = '#3A6C74')+ 
 			labs(subtitle = 'Residuals vs. Fitted', y = 'Residuals', x = 'Fitted')+
 			theme_bw()
 		res_n1_hist <- ggplot(data = res_n1, aes(x = resids))+ 
-			geom_histogram(binwidth = nrow(res_n1)/100,fill = 'black')+ 
+			geom_histogram(binwidth = nrow(res_n1)/100,col = '#3A6C74', fill = '#3A6C74')+ 
 			theme_bw()+
 			labs(subtitle = 'Residuals', y = 'Frequency', x = 'Residuals')
 		res_n1_qq <- ggplot(data=F1, aes(sample = fitted))+
-			stat_qq(size=1,pch=21)+
+			stat_qq(size=1,pch=21,col = '#3A6C74', fill = '#3A6C74')+
 			labs(subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
 			stat_qq_line(linetype=2, col='red')+
 			theme_bw()
@@ -127,7 +129,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 			mutate(var=fct_reorder(var,rel.inf))%>%
 			ggplot(aes(x=var,y=rel.inf,fill=rel.inf))+
 				geom_bar(stat='identity')+
-				scale_fill_distiller(direction=1,palette='Oranges',limits=c(0,50),guide='none')+
+				scale_fill_distiller(direction=1,palette='Blue',limits=c(0,50),guide='none')+
 				theme_bw()+
 				coord_flip()+
 				scale_x_discrete(labels=hab.labels)+
