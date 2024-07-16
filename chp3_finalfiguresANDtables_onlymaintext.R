@@ -325,9 +325,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ## Table: pathway description, estimates, CI and Support ##
 ##############################################
 	
-	## For local macbook
-    samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
-
+	samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
 	pathwayresults_table <- MCMCsummary(samplesList5a,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
 			tibble::rownames_to_column()%>%
@@ -360,20 +358,78 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	save_as_docx(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_July2024.docx')	
 
 
+##############################################
+## Plots from predictions of effects from path 3 into 2020 hexdata ##
+##############################################
+	
+	## load data 
+  hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
+    rename(standard.hexshark = stndrd_hxs,
+      standard.hexfish = stndrd_hxf,
+      standard.hexdist2shore = stndrd_h2,
+      standard.hexdistcmg = stndrd_hxd,
+      standard.hexlowdensg = stndrd_hxl,
+      standard.hexmeddensg = stndrd_hxm,
+      standard.dist2jetty = stndrd_d2,
+      standard.depth = stndrd_d,
+      standard.sgPCA1 = st_PCA1,
+      zlogit.sqzrisk = zlgt_sq,
+      relPropPD = rlPrpPD
+      )
 
+	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
 
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
+	
+	## join spatial geomtry by jcode to preds
+	
+		p3.sf <- st_as_sf(left_join(hexsf, p3pred, by='jcode'))%>%
+		  dplyr::select(jcode, Mean, Low, Upp, geometry)
 
+	## path 3 plots - Absolute values for mean, upper, lower effect estimates
 
+  p3.mean <- ggplot()+
+    geom_sf(data = p3.sf, aes(fill = abs(Mean)), lwd=0)+
+    geom_sf(data = land, col = 'grey75', lwd=0.5)+
+    theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+      theme(axis.text.x = element_text(angle=45, hjust = 1))
+   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_absolute_magnitude_of_effect_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
+ 
 
+  p3.mean.notabsollute <- ggplot()+
+    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
+    geom_sf(data = land, col = 'grey75', lwd=0.5)+
+    theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Mean')+
+      theme(axis.text.x = element_text(angle=45, hjust = 1))
+   ggsave(p3.mean.notabsollute, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
+ 
 
+	p3.lower <- ggplot()+
+		geom_sf(data = p3.sf, aes(fill = abs(Low)), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+	  theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")+
+    labs(subtitle = 'Lower')
+	 p3.lower
 
+	p3.upper <- ggplot()+
+		geom_sf(data = p3.sf, aes(fill = abs(Upp)), lwd=0)+
+		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+	  theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")+
+    labs(subtitle = 'Upper')
+    p3.upper
 
+  # upper and lower side by side 
+    p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+    p3.hdis.wide.axescollected <- (p3.lower | p3upper.noyaxis) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
+ 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_Absolute_effect_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
 
-
-
-
-
-
+	
 
 
 

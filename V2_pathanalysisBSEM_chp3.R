@@ -1149,9 +1149,9 @@ stopifnot(nrow(hexdata)==2663) # check
 
   	## Updated approach: 5 March 2024
   	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
-  	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+  	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model5aJuly2024_calcJuly2024.RData')
   	
-    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.csv')%>%mutate(jcode=as.character(jcode))
+    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.character(jcode))
       head(hexdata)
 
   	## re-format data
@@ -1206,7 +1206,7 @@ stopifnot(nrow(hexdata)==2663) # check
   ## Save path estimates and path means + HDI dfs
 
   	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')
-  	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')
+  	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
 
 ##################################################
 ## Path inference diagnostics ##
@@ -1215,7 +1215,7 @@ stopifnot(nrow(hexdata)==2663) # check
 	## local R, macbook 
 	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')%>%
 		mutate(jcode = as.character(jcode))
 
 ## histograms of HDIs
@@ -1229,18 +1229,23 @@ stopifnot(nrow(hexdata)==2663) # check
     labs(subtitle = 'B') + 
     theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
 	
-  p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+  p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#020F75', col='#020F75',lwd=0.05) + 
     theme_bw() + 
-    labs(subtitle = 'C') + 
-    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
-	p3low <- ggplot(data=p3pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+    labs(subtitle = 'Upper') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank(),plot.subtitle = element_text(face = "italic"))+
+    xlim(-4,4)
+	p3low <- ggplot(data=p3pred, aes(x=Low))+
+    geom_histogram(binwidth=.2, fill='#020F75', col='#020F75',lwd=0.05) + 
     theme_bw() + 
-    labs(subtitle = 'D') + 
-    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
+    labs(subtitle = 'Lower') + 
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank(),plot.subtitle = element_text(face = "italic"))+
+    xlim(-4,4)
 
-	hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
+  hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
+  hist.HDIs.path3 <-  p3up | p3low 
 
-	ggsave(hist.HDIs.path2.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path2and3.png', dpi = 850, units = 'in', height = 3, width = 8.5)
+  ggsave(hist.HDIs.path2.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path2and3.png', dpi = 850, units = 'in', height = 3, width = 8.5)
+  ggsave(hist.HDIs.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path3_model5_july24.png', dpi = 850, units = 'in', height = 3, width = 8.5)
  
 
 ##################################################
@@ -1248,7 +1253,7 @@ stopifnot(nrow(hexdata)==2663) # check
 ##################################################
 	pacman::p_load(sf, ggplot2, patchwork,tidyverse)
   
-  hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_fromPRuse_andBRTs_may24.shp'),crs='WGS84')%>%
+    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
       rename(standard.hexshark = stndrd_hxs,
         standard.hexfish = stndrd_hxf,
         standard.hexdist2shore = stndrd_h2,
@@ -1265,8 +1270,8 @@ stopifnot(nrow(hexdata)==2663) # check
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
 	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
-		mutate(jcode = as.character(jcode))
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
+
 	head(p3pred)
 
 	## cut out the splattering of stuff to the south for plotting
@@ -1345,48 +1350,59 @@ stopifnot(nrow(hexdata)==2663) # check
 
       
 	## path 3 plots - mean, upper, lower 
-      summary(p2.sf)
-	p3.mean <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = Mean), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Mean')+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
-	 ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+
+  p3.mean <- ggplot()+
+    geom_sf(data = p3.sf, aes(fill = abs(Mean)), lwd=0)+
+    geom_sf(data = land, col = 'grey75', lwd=0.5)+
+    theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+      theme(axis.text.x = element_text(angle=45, hjust = 1))
+   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_absolute_magnitude_of_effect_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
+ 
+
+  p3.mean <- ggplot()+
+    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
+    geom_sf(data = land, col = 'grey75', lwd=0.5)+
+    theme_bw()+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Mean')+
+      theme(axis.text.x = element_text(angle=45, hjust = 1))
+   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
  
 
 	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = Low), lwd=0)+
+		geom_sf(data = p3.sf, aes(fill = abs(Low)), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Lower')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")+
+    labs(subtitle = 'Lower')
 	 p3.lower
 
 	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = Upp), lwd=0)+
+		geom_sf(data = p3.sf, aes(fill = abs(Upp)), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-2,4), oob = scales::squish, name = 'Upper')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")+
+    labs(subtitle = 'Upper')
     p3.upper
 
 	  ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
-      p3.upper.diff <- ggplot()+
-        geom_sf(data = p3.sf, aes(fill = abs(Upp-Mean)), lwd=0)+
- 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
-        theme_bw()+
-        theme(axis.text.x = element_text(angle=45, hjust = 1))
-      p3.upper.diff
-      
-      p3.lower.diff <- ggplot()+
-        geom_sf(data = p3.sf, aes(fill = abs(Mean-Low)), lwd=0)+
- 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
-        theme_bw()+
-        theme(axis.text.x = element_text(angle=45, hjust = 1),)
-      p3.lower.diff
+        p3.upper.diff <- ggplot()+
+          geom_sf(data = p3.sf, aes(fill = abs(Upp-Mean)), lwd=0)+
+   		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+  		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
+          theme_bw()+
+          theme(axis.text.x = element_text(angle=45, hjust = 1))
+        p3.upper.diff
+        
+        p3.lower.diff <- ggplot()+
+          geom_sf(data = p3.sf, aes(fill = abs(Mean-Low)), lwd=0)+
+   		geom_sf(data = land, col = 'grey75', lwd=0.5)+
+  		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,1), oob = scales::squish, name = 'Lower')+
+          theme_bw()+
+          theme(axis.text.x = element_text(angle=45, hjust = 1),)
+        p3.lower.diff
 
 
 	## various arrangements for pub
@@ -1400,7 +1416,7 @@ stopifnot(nrow(hexdata)==2663) # check
     p2upper.noyaxis <- p2.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
 
     p2.hdis.wide.axescollected <- p2.lower + p2upper.noyaxis 
-    p3.hdis.wide.axescollected <- p3.lower + p3upper.noyaxis 
+    p3.hdis.wide.axescollected <- (p3.lower | p3upper.noyaxis) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
 
 
 		## means with their HDIs, horizontal
@@ -1440,7 +1456,7 @@ stopifnot(nrow(hexdata)==2663) # check
 
 	  ####### path 3 plots 
  
- 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+ 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, height = 7)
 		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p3.upper, file = 'resource_chp3/path_inference/path3_upperHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
 		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
@@ -1448,7 +1464,7 @@ stopifnot(nrow(hexdata)==2663) # check
 		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
 		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
 		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
- 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 8.5)
+ 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_Absolute_effect_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
 
 		
  		ggsave(means.., file = 'resource_chp3/path_inference/path2_and_path3_mean_estimates_spatial_forpubs_collectedaxes_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 7)
