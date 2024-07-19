@@ -11,8 +11,8 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 ## Common dataframes and formatting
 ###################
-    hexdata <- read.csv('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.')
-    hexsf <- st_as_sf(st_read('resource_chp3/data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
+    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.')
+    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
       dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
       rename(standard.hexshark = stndrd_hxs,
         standard.hexfish = stndrd_hxf,
@@ -90,6 +90,13 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	h14 <- st_as_sf(st_read('winter2014habitat_polygonised_forSF_ECdata.shp'), crs='WGS84')
 	h18 <- st_as_sf(st_read('summer2018habitat_polygonised_forSF_ECdata.shp'), crs='WGS84')
 	h20 <- st_as_sf(st_read('winter2020habitat_polygonised_forSF_ECdata.shp'), crs = 'WGS84')
+
+
+	## coverage of each type of habitat feature by area 
+		total.area <- st_area(h20)/sum(st_area(h20))
+		# values left to right: lds, mds, hds, vegetated, bare/urban
+		# 0.271, 0.184, 0.127, 0.315, 0.100
+
 
 	# hab maps 
 	plot1 <- ggplot()+
@@ -401,25 +408,25 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
     geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
     geom_sf(data = land, col = 'grey75', lwd=0.5)+
     theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Mean')+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1,0.5), oob = scales::squish, name = 'Mean')+
       theme(axis.text.x = element_text(angle=45, hjust = 1))
    ggsave(p3.mean.notabsollute, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
  
 
 	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = abs(Low)), lwd=0)+
+		geom_sf(data = p3.sf, aes(fill = (Low)), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1, 0.5), oob = scales::squish, name = 'Prediction')+
 	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")+
     labs(subtitle = 'Lower')
 	 p3.lower
 
 	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = abs(Upp)), lwd=0)+
+		geom_sf(data = p3.sf, aes(fill = (Upp)), lwd=0)+
 		geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
+    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1, 0.5), oob = scales::squish, name = 'Prediction')+
 	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")+
     labs(subtitle = 'Upper')
     p3.upper
@@ -427,11 +434,25 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
   # upper and lower side by side 
     p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
     p3.hdis.wide.axescollected <- (p3.lower | p3upper.noyaxis) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
- 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_Absolute_effect_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
+ 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel__estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
 
-	
+	## path 3 prediction plot, mean, with 2 receivers of highest predaiton risk score and the jetties marked 
+
+		relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
+			slice_max(relPropPD, n = 2)
+		jettys<- st_as_sf(st_read('boatlaunchesBimini.kml'),crs='WGS84')
 
 
+	  p3.mean.withlocations <- ggplot()+
+	    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
+	    geom_sf(data = land, col = 'grey75', lwd=0.5)+
+	    geom_sf(data = relp, col = 'purple3', pch = 19, size = 4.25)+
+			geom_sf(data = jettys, pch = 24, size = 3, col='goldenrod1',fill='goldenrod1')+
+	    theme_bw()+
+	    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1,0.5), oob = scales::squish, name = 'Mean')+
+	      theme(axis.text.x = element_text(angle=45, hjust = 1))
+	   ggsave(p3.mean.withlocations, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_withtop2RelRisk_jetties_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
+	 
 
 
 

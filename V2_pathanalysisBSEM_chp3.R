@@ -336,7 +336,7 @@ stopifnot(nrow(hexdata)==2663) # check
       rename(Parameter = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
       mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
       dplyr::select(-lower,-upper,-Sd, -pg0)%>% 
-      filter(Parameter!='value[1]', Parameter!='value[2]')%>%
+      filter(Parameter!='value[1]', Parameter!='value[2]', Parameter!='g[2]', Parameter!='g[1]')%>%
       flextable()%>%
       theme_zebra()%>%
       set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
