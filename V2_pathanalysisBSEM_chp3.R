@@ -30,20 +30,11 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 ### Define Sharkiness
 ## counts of detections per individual per Site (buffer/receiver)
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv')
-  			
+pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv')%>%
+    mutate(standard.dist2jetty = ((dist2jetty-mean(dist2jetty))/sd(dist2jetty)))
 stopifnot(nrow(pointdata)==560) # check 
 sapply(pointdata,class)
 summary(pointdata)
-
-
-# on server
-
-  pointdata<-read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_dec23.csv')%>%
-    mutate(standard.press=((as.numeric(pressure)-mean(as.numeric(pressure)))/sd(as.numeric(pressure)))) %>%
-    mutate(standard.dist2jetty=((as.numeric(dist2jetty)-mean(as.numeric(dist2jetty)))/sd(as.numeric(dist2jetty))),.after=dist2jetty)
-  head(pointdata)
-
   
 	# Table of random sample of data frame for graphical methods figure 
   pits <- unique(pointdata$PIT)
@@ -72,8 +63,7 @@ summary(pointdata)
 ####################################################
 ###### DF 2, for process model for fishiness  ######
 
-hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.numeric(jcode)) # updated may 2024 to include relative predation pressure (and relPropPD)
-nrow(hexdata%>%distinct(jcode))
+hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.numeric(jcode))%>%distinct(jcode, .keep_all = TRUE) # updated may 2024 to include relative predation pressure (and relPropPD)
 stopifnot(nrow(hexdata)==2663) # check 
 
 
@@ -171,7 +161,7 @@ stopifnot(nrow(hexdata)==2663) # check
       for(i in 1:hex.N){
       standard.hexsg[i] ~ dnorm(hexsg.mu[i],tau.hexsg)
 
-      hexsg.mu[i] <- k + j[1]*standard.hexdist2shore[i] + j[2]*standard.hexdistcmg[i] + j[3]*standard.hexdist2jetty[i] + j[4]*standard.hexdist2shore[i]*standard.hexdistcmg[i] 
+      hexsg.mu[i] <- k + j[1]*standard.hexdepth[i] + j[2]*standard.hexdistcmg[i] + j[3]*standard.hexdist2jetty[i] + j[4]*standard.hexdist2jetty[i]*standard.hexdistcmg[i] 
     }
     
     ### data model for fishiness - hexagons 
@@ -211,7 +201,7 @@ stopifnot(nrow(hexdata)==2663) # check
 
     path[1] <-  j[1] * j[2] * j[3] * a[4]  # seagrass dredge informed path: sg dist2jetty dist2shore distcmg 
 
-    path[2] <-  j[1] * j[3] * c[3] * a[1] # fish dredge informed path: maxN sg dist2shore dist2jetty
+    path[2] <-  j[1] * j[3] * c[2] * c[3] * a[1] # fish dredge informed path: maxN sg (depth + jetty) dist2shore dist2jetty (covered with sg)
 
     path[3] <-  e[1] * e[2] * e[3] * e[4] * a[7] # predator pressure informed path: predators depth dist2shore dist2jetty distcmg
 
@@ -227,7 +217,7 @@ stopifnot(nrow(hexdata)==2663) # check
     ## Compile the model code
     ##########################
     
-    myConstants5a<-list(point.N=560,hex.N=2663,B=max(pointdata$buffIDnum),buffID=pointdata$buffID)
+    myConstants5a<-list(point.N=560,hex.N=2663,B=max(pointdata$buffID),buffID=pointdata$buffID)
     
     myData5a<-list(
       # tell nimble the covariates 
@@ -241,15 +231,15 @@ stopifnot(nrow(hexdata)==2663) # check
       standard.pointdist2jetty= pointdata$standard.dist2jetty,
       zlogit.sqzrisk = pointdata$zlogit.sqzrisk,
       zlogit.sqzrisk.pred = pointdata$zlogit.sqzrisk,
-      standard.larges = pointdata$standard.larges,
       standard.shark3 = pointdata$standard.shark,
       # hex data 
       standard.hexfish = hexdata$standard.hexfish,
       standard.hexdist2shore = hexdata$standard.hexdist2shore,
       standard.hexdistcmg = hexdata$standard.hexdistcmg,
       standard.hexdist2jetty = hexdata$standard.dist2jetty,
+      standard.hexdepth = hexdata$standard.depth,
       standard.hexsg = hexdata$standard.sgPCA1,
-      standard.shark2 = hexdata$standard.hexshark    
+      standard.shark2 = hexdata$standard.hexshark
       )
     
     init.values5a<-list(a=rnorm(7,0,1),

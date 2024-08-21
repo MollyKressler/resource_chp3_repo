@@ -82,13 +82,47 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		dplyr::select(buffID, maxN_preds, geometry)%>%
 		rename(rID = buffID)
 
+	## update pcas 
+		h1 <- read.csv('resource_chp3/sf_for_predictions_fromBRTs_jun24.csv')%>%dplyr::select(jcode, prp_hds)%>%mutate(jcode = as.character(jcode))%>%
+		mutate(standard.hds = (prp_hds-mean(prp_hds))/sd(prp_hds))
+		hexdata2 <- left_join(hexdata,h1)
+
+		# calculate the seagrass PCA, for hexagon-level data
+		cor(hexdata2$standard.hds ,hexdata2$standard.mds) 
+		b<-as_tibble(hexdata2%>%dplyr::select(standard.hds,standard.hexmeddensg, - geometry))
+		hexpca1 <- prcomp(b[,1:2])
+
+		hexdata3 <- hexdata2 %>%
+			mutate(sgPCA1 = predict(hexpca1)[,1], .before = 'standard.hexlowdensg')%>%
+			mutate(standard.sgPCA1 = (sgPCA1-mean(sgPCA1))/sd(sgPCA1), .before = 'geometry')
+
+		p1 <- read.csv('resource_chp3/standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JUNE24.csv')%>%dplyr::select(standard.hds)
+		pp <- pointdata %>%dplyr::select(-standard.hds)
+		p2 <- bind_cols(pp,p1)
+		p2
+
+		# calculate the seagrass PCA, for hexagon-level data
+		cor(p2$standard.hds ,p2$standard.mds) 
+		bb<-as_tibble(p2%>%dplyr::select(standard.hds,standard.mds))
+		pointpca1 <- prcomp(bb[,1:2])
+
+		pointdata3 <- p2 %>%
+			mutate(sgPCA1 = predict(pointpca1)[,1], .before = 'standard.hds')%>%
+			mutate(standard.sgPCA1 = (sgPCA1-mean(sgPCA1))/sd(sgPCA1), .before = 'standard.hds')
+
+
+
 	## join predictions of MaxN to dfs,keep spatial information & standardised the MaxN predictions
 
-		newhex <- st_join(hexdata, fishhex)%>%
+		newhex <- st_join(hexdata3, fishhex)%>%
 			mutate(standard.hexfish = (maxN_preds-mean(maxN_preds))/sd(maxN_preds), .before = 'standard.hexdist2shore')
 
-		newpoint <- st_as_sf(left_join(pointdata, fishbuff, by = 'rID'))%>%
+		newpoint <- st_as_sf(left_join(pointdata3, fishbuff, by = 'rID'))%>%
 			mutate(standard.fish = (maxN_preds-mean(maxN_preds))/sd(maxN_preds), .before = 'standard.dist2shore')
+
+
+
+
 
 	#####
 	## - save: hexdata with new MaxN coV with spatial and as CSV, and pointdata as just a new csv. 

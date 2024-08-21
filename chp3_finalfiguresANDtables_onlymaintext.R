@@ -11,8 +11,8 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 ## Common dataframes and formatting
 ###################
-    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.')
-    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
+    hexdata <- read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.csv')
+    hexsf <- st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.shp'),crs='WGS84')%>%
       dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
       rename(standard.hexshark = stndrd_hxs,
         standard.hexfish = stndrd_hxf,
@@ -103,6 +103,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data=h14,aes(fill=feature,col=feature),lwd=0)+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		geom_sf(data = land, col = 'grey32',fill = NA, lwd = 0.25)+
 		theme_bw()+
 		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
 		ggtitle('2014')
@@ -110,6 +111,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data=h18,aes(fill=feature,col=feature),lwd=0)+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		geom_sf(data = land, col = 'grey32',fill = NA, lwd = 0.25)+
 		theme_bw()+	
 		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
 		ggtitle('2018')
@@ -117,6 +119,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
 		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
 		ggtitle('2020')
@@ -133,6 +136,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data = jettys, pch = 24, size = 1, col='goldenrod1',fill='goldenrod1')+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
+		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
 		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
 		ggtitle('2020')
@@ -150,6 +154,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		geom_sf(data = jettys, pch = 24, size = 1, col='goldenrod1',fill='goldenrod1')+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den.\n\ Seagrass', 'Low Den.\n\ Seagrass', 'Medium Den.\n\ Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den.\n\ Seagrass', 'Low Den.\n\ Seagrass', 'Medium Den.\n\ Seagrass', 'Vegetated'))+
+		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
 		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
 		ggtitle('2020')+
@@ -196,6 +201,35 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		ggtitle('MaxN')
 	ggsave(maxN.plot,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/simplified_BRT_LOG_maxN_preds_july24.png',device='png',units='in',dpi=950,height=7,width=6)		
 
+	# calculate CI (method 1)
+	result <- t.test(preds$maxN_preds)
+	result$conf.int
+
+	# (method 2) R program to find the confidence interval
+	 
+	# Calculate the mean of the sample data
+	mean_value <- mean(preds$maxN_preds)
+	 
+	# Compute the size
+	n <- length(preds$maxN_preds)
+	 
+	# Find the standard deviation
+	standard_deviation <- sd(preds$maxN_preds)
+	 
+	# Find the standard error
+	standard_error <- standard_deviation / sqrt(n)
+	alpha = 0.05
+	degrees_of_freedom = n - 1
+	t_score = qt(p=alpha/2, df=degrees_of_freedom,lower.tail=F)
+	margin_error <- t_score * standard_error
+	 
+	# Calculating lower bound and upper bound
+	lower_bound <- mean_value - margin_error
+	upper_bound <- mean_value + margin_error
+	 
+	# Print the confidence interval
+	print(c(lower_bound,upper_bound)) # this is the same as call a t.test of the data column. 
+
 
 ###################
 ## Descriptive plots for predator metric: relative risk at receivers
@@ -230,7 +264,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 	
 	## seagrass PCA is standardised and mean-centred in hexdata
-	withpca<-st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')
+	withpca<-st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.shp'),crs='WGS84')
 	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 
 	sgPCAplot <- ggplot()+
@@ -244,15 +278,12 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 	ggsave(sgPCAplot,file='resource_chp3/seagrassesPCA_distributionplot_forchpater3writeup_.png',device=png,units='in',height=8,width=4.2,dpi=850)
 
 
-
 ###################
 ## Three mid level predictors: seagrasses PCA, fish, relative risk 
 ###################
 
 	plot<- (sgPCAplot | maxN.plot | relativePropPDdettsreceivers) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', text = element_text(size = 8))
 	ggsave(plot,file='resource_chp3/sgPCA_maxN_and_relRisk_chp3.png',device='png',units='in',dpi=950,height=4.5)		
-
-
 
 
 ###################
