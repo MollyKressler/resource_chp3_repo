@@ -30,9 +30,10 @@ setwd("~/resource/data_and_RDS_NOTforupload")
 ### Define Sharkiness
 ## counts of detections per individual per Site (buffer/receiver)
 
-pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.csv')%>%
-    mutate(standard.dist2jetty = ((dist2jetty-mean(dist2jetty))/sd(dist2jetty)))
-stopifnot(nrow(pointdata)==560) # check 
+pointdata<-read.csv('pointdata_juvlemons_withAllCoV_MKthesis20192020.csv')%>%
+    mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+    mutate(buffIDnum = parse_number(buffID))
+stopifnot(nrow(pointdata)==560*2) # check 
 sapply(pointdata,class)
 summary(pointdata)
   
@@ -46,7 +47,7 @@ summary(pointdata)
 
 	pointflex <- pointdata%>% 
 		as_tibble%>%
-    dplyr::select(-PIT,-z, -buff_ar, -rID,-ndetts, -relPropPD,-total,-sqzrisk,-logit.sqzrisk, -standard.press, -standard.larges, -maxN_preds)%>%
+    dplyr::select(tagID, starts_with('st_'))%>%
 		rename('Tag' = 'tagID')%>%
 		slice(1:5)%>% 
 		flextable()%>%
@@ -58,19 +59,21 @@ summary(pointdata)
 		fontsize(size = 10, part = 'all')%>%
 		autofit()
 		pointflex
-		save_as_image(pointflex, 'resource_chp3/forgraphicalmethodsfigure_chapter3_datapreparation_POINTDATA_june24.png',webshot='webshot')
+		save_as_image(pointflex, 'resource_chp3/forgraphicalmethodsfigure_chapter3_datapreparation_POINTDATA_oct2024.png',webshot='webshot')
 
 ####################################################
 ###### DF 2, for process model for fishiness  ######
 
-hexdata<-read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.numeric(jcode))%>%distinct(jcode, .keep_all = TRUE) # updated may 2024 to include relative predation pressure (and relPropPD)
-stopifnot(nrow(hexdata)==2663) # check 
-
+hexdata<-read.csv('hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv')%>%
+    mutate(st_shark = (m5_PUSE - mean(m5_PUSE))/sd(m5_PUSE))%>%
+    mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))
+stopifnot(nrow(hexdata)==5296) # check 
+summary(hexdata)
 
 	# Table of random sample of data frame for graphical methods figure 
 	hexflex <- hexdata%>%
 	dplyr::rename('Hex.No' = 'jcode')%>%
-    dplyr::select(-rID,-ndetts, -pressur,-relPropPD,-total,-Name)%>%
+    dplyr::select(Hex.No, starts_with('st_'))%>%
 		slice(1:5)%>% 
 		flextable()%>%
 		theme_zebra()%>%
@@ -81,15 +84,316 @@ stopifnot(nrow(hexdata)==2663) # check
 		fontsize(size = 10, part = 'all')%>%
 		autofit()
 		hexflex
-		save_as_image(hexflex, 'resource_chp3/forgraphicalmethodsfigure_chapter3_datapreparation_HEXDATA_june24.png',webshot='webshot')
+		save_as_image(hexflex, 'resource_chp3/forgraphicalmethodsfigure_chapter3_datapreparation_HEXDATA_oct2024.png',webshot='webshot')
+
 
 
 ##################################################################
 ##################################################################
- 
+
+##################### 
+## - MODEL6: tidal version of model5a. Covariates, predicted or observed, were done so with respect to tide (high/low).
+
+  modelCode6<-nimbleCode({
+      
+
+    ##########################
+    ######### priors #########
+    
+    #### prior for sharkiness #### 
+    for(i in 1:8){
+       a[i] ~ dnorm(0,.01) 
+      }
+    for(i in 1:2){
+       g[i] ~ dnorm(0,.01)# for pred and fish only models, for interpretting coefficients 
+      }
+    for(i in 1:1){
+      h[i] ~ dnorm(0, 0.01) # for tide on sharks - the difference between high and low tide 
+    }
+      # prior for residual variance - sharks 
+      tau.shark ~ dgamma(0.01,0.01) 
+      sigma.shark <- sqrt(1/tau.shark)
+      tau.shark.hex ~ dgamma(0.01, 0.01) # for glm of fish on sharks, at hexagon level
+      sigma.shark.hex <- sqrt(1/tau.shark.hex)
+    
+    #### prior for predators #### 
+    for(i in 1:4){
+       e[i] ~ dnorm(0,.001) 
+      }
+      # prior for intercept - sharks 
+      f ~ dnorm(0,.001)
+      # prior for residual variance - sharks 
+      tau.pred ~ dgamma(0.01,0.01) # 
+      sigma.pred <- sqrt(1/tau.pred)
+    
+    # group-level effect of buffID on sharkiness and predators.
+    for(i in 1:B){
+      epsi_shark[i]~ dnorm(0,tau.epsi_shark)
+    }
+      # prior for intercept - sharks 
+      b ~ dnorm(0,.001)
+      tau.epsi_shark ~ dgamma(0.01,0.01)
+      sigma.epsi_shark <- sqrt(1/tau.epsi_shark)
+    
+    #### prior for fishiness (cross metric, hexagons) ####
+    for(i in 1:6){
+        c[i] ~ dnorm(0,0.001) 
+      }
+      # prior for intercept - fishiness
+      d ~ dnorm(0,0.001)
+      
+      # prior for residual variance (precision) - fishiness
+      tau.fish ~ dgamma(0.01,0.01) 
+      sigma.fish <- sqrt(1/tau.fish) # gives sd 
+    
+    #### prior for seagrasses PCA @ hexagon level ####
+    for(i in 1:4){
+      j[i] ~ dnorm(0,0.01) 
+          }
+      # prior for intercept - hex 
+      k ~ dnorm(0,0.001) # low
+          
+      # prior for residual variance (precision) - hex sg PCA 
+      tau.hexsg ~ dgamma(0.01,0.01)
+      sigma.hexsg <- sqrt(1/tau.hexsg)
+  
+
+    #########################################################
+    ######### Likelihoods - data and process models ######### 
+
+    ## glm for the effect of tide (only), informed by local knowledge of the impact of tides 
+      for(i in 1: point.N){
+        standard.shark4[i] ~ dnorm(tideonly.mu[i], tau.shark)
+
+        tideonly.mu[i] <- epsi_shark[buffID[i]] + h[1]*pointtide[i] 
+      }
+
+     ## informed by hypothesis exploration 
+
+    ### data model for seagrasses - hexagons
+      for(i in 1:hex.N){
+      standard.hexsg[i] ~ dnorm(hexsg.mu[i],tau.hexsg)
+
+      hexsg.mu[i] <- k + j[1]*standard.hexdist2shore[i] + j[2]*standard.hexdistcmg[i] + j[3]*standard.hexdist2jetty[i] + j[4]*standard.hexdist2shore[i]*standard.hexdistcmg[i] 
+    }
+    
+    ### data model for fishiness - hexagons 
+     for(i in 1:hex.N){
+      standard.hexfish[i] ~ dnorm(fish.mu[i],tau.fish) 
+
+      fish.mu[i] <- d + c[1]*standard.hexdist2jetty[i] + c[2]*standard.hexdist2shore[i] + c[3]*standard.hexmds[i]+ c[4]*standard.hexhds[i]+ c[5]*standard.hexdist2jetty[i]*standard.hexdist2shore[i] + c[6]*hextide[i]
+
+      # glm for the effect of fish (only)
+      standard.hexshark[i] ~ dnorm(fishonly.mu[i], tau.shark.hex)
+      fishonly.mu[i] <- d + g[1]*standard.hexfish[i]
+    }
+  
+    ### data model for large shark detectons - point data 
+     for(i in 1:point.N){
+      zlogit.sqzrisk[i] ~ dnorm(pred.mu[i], tau.pred)
+
+      pred.mu[i] <- f + e[1]*standard.pointdist2shore[i] + e[2]*standard.pointdepth[i] + e[3]*standard.pointdistcmg[i] + e[4]*standard.pointdepth[i]*standard.pointdistcmg[i]
+
+      ## glm for the effect of predation (only) 
+      standard.shark3[i] ~ dnorm(predonly.mu[i], tau.shark)
+      predonly.mu[i] <-  epsi_shark[buffID[i]] + g[2]*zlogit.sqzrisk.pred[i]
+
+     }
+
+    ### data model for sharkiness - pointdata
+     for(i in 1:point.N){
+      standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)   
+      shark.mu[i] <- epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.pointdist2shore[i] + a[3]*standard.pointdistcmg[i] + a[4]*standard.sg[i] + a[5]*standard.pointdepth[i]+ a[6]*standard.pointdist2jetty[i]+ a[7]*zlogit.sqzrisk[i] + a[8]*pointtide[i]
+
+      }  
+
+    ######### Derived Parameters #########
+    # for estmating total pathways 
+    ## coefficients for distance metrics are from process models of those predictors. leave out coefficients for interactions if the fixed effects coefficients are already included.
+
+    path[1] <-  a[4] + h[1] # seagrass and tide
+
+    path[2] <-  a[1] + c[1] + c[2] + c[3] + c[4] + a[8] # fish, the things that effect fish, and tide
+
+    path[3] <-  a[7] + e[1] + e[2] + e[3] + a[8] # predator risk, the things that effect risk, and tide
+
+    path[4] <-  a[8] + a[2] + a[3] + a[4] + a[5] + a[6] # tide - should it have abiotics in it? tide in the context of the habitat? Because similiarly you have 'plain' coefficiednt estimates g1 an g2 for fish and pred. 
+
+    path[5] <-  a[7] + e[1] + e[2] + e[3] # predator risk, the things that effect risk, no tide
+
+    path[6] <-  a[1] + c[1] + c[2] + c[3] + c[4] # fish, the things that effect fish, no tide
+
+    ## need to calculate the values from the abiotics along the paths to the initial parameter, e.g. abtiocs to fishes in path 1. 
+
+    value[1] <-  j[1] * j[2] * j[3]  # path 2, shore * refuge * jetty
+    value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
+    value[3] <- a[2] + a[3] + a[4] + a[5] + a[6]  # abiotics in path 4 for tide
+
+  }) # end of model code 
+
+
+    ##########################
+    ## Compile the model code
+    ##########################
+    
+    myConstants6<-list(point.N=1120,hex.N=5296,B=max(pointdata$buffIDnum),buffID=pointdata$buffIDnum)
+    
+    myData6<-list(
+      # tell nimble the covariates 
+      # point data
+      standard.shark = pointdata$st_shark,
+      standard.pointdist2shore = pointdata$st_d2shore,
+      standard.pointdistcmg = pointdata$st_distcmg,
+      standard.fish.pred = pointdata$st_maxN,
+      standard.sg = pointdata$st_SG,
+      standard.pointdepth= pointdata$st_depth,
+      standard.pointdist2jetty= pointdata$st_d2jetty,
+      zlogit.sqzrisk = pointdata$st_risk,
+      zlogit.sqzrisk.pred = pointdata$st_risk,
+      standard.shark3 = pointdata$st_shark,
+      standard.shark4 = pointdata$st_shark,
+      pointtide = pointdata$tide,
+      # hex data 
+      standard.hexfish = hexdata$st_maxN,
+      standard.hexdist2shore = hexdata$st_d2sh,
+      standard.hexdistcmg = hexdata$st_dstc,
+      standard.hexdist2jetty = hexdata$st_d2jetty,
+      standard.hexmds = hexdata$st_mds,
+      standard.hexhds = hexdata$st_hds,
+      standard.hexshark = hexdata$st_shark,
+      hextide = hexdata$tide,
+      standard.hexsg = hexdata$st_SG
+      )
+    
+    init.values6<-list(a=rnorm(8,0,1),
+                        b=rnorm(1),
+                        c=rnorm(6,0,1),
+                        d=rnorm(1),
+                        e=rnorm(4,0,1),
+                        f=rnorm(1),
+                        j=rnorm(4,0,1),
+                        k=rnorm(1),
+                        g=rnorm(2,0,1),
+                        h=rnorm(1,0,.1),
+                        path=rnorm(6,0,1),
+                        value=rnorm(3,0,.05),
+                        epsi_shark=rgamma(35,1,0.1),
+                        tau.shark=rgamma(1,0.01,0.01),
+                        tau.fish=rgamma(1,0.01,0.01),
+                        tau.pred=rgamma(1,0.01,0.01),
+                        tau.epsi_shark=rgamma(1,0.01,0.01),
+                        tau.hexsg=rgamma(1,0.01,0.01),
+                        tau.shark.hex = rgamma(1, 0.01, 0.01)
+    )
+    
+    ## model4 define and compile
+    model6<-nimbleModel(code=modelCode6, name="model6",data=myData6,constants = myConstants6,inits=init.values6) #define the model
+    
+    model6$calculate() # if = NA, indicates missing or invalid initial values, and you have to fix the model until it is numeric.
+    model6$initializeInfo()
+    
+    Cm6<-compileNimble(model6) # compile the model
+
+    
+    ##########################
+    ## Compile & Run the MCMC
+    ##########################
+    
+    ## model5
+    conf6<- configureMCMC(model6,monitors=c('a','b','c','d','j','k','e','f','g', 'h','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
+    MCMC_model6 <- buildMCMC(conf6,na.rm=TRUE)
+    ccMCMC6 <-compileNimble(MCMC_model6, project = model6)
+    samples6 <- runMCMC(ccMCMC6,niter=5000, nburnin=1000, nchains=3,samplesAsCodaMCMC = TRUE) 
+
+    summary(samples6)
+    
+    saveRDS(samples6,'resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_oct2024.RDS')
+
+    mcmc_summary_Cmodel6<-MCMCsummary(samples6,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
+      tibble::rownames_to_column()%>%
+      rename_with(str_to_title)%>%
+      rename(Parameter = Rowname)%>%
+      rename('% of posterior with \n\ same sign as estimate' = 'P>0', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+      mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
+      dplyr::select(-lower,-upper,-Sd)%>% 
+      flextable()%>%
+      theme_zebra()%>%
+      set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+      align(align = 'center', part = 'all')%>%
+      font(fontname = 'Arial', part = 'all')%>%
+      color(color='black',part='all')%>%
+      fontsize(size = 10, part = 'all')%>%
+      autofit()
+    mcmc_summary_Cmodel6
+    
+    # caterpillar plots 
+    
+    MCMCplot(samples6,ci=c(50,95),params=c('path')) # point = median, thick line = 50% CI, thin line = 95% CI 
+    
+    # trace and density plots
+    
+    MCMCtrace(samplesList6,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
+    
+    
+    ###########################################################
+    ## Summary Table & Caterpillar plots with MCMCvis & tidybayes to show small values ##
+    ###########################################################
+    
+    # import RDS, local macbook 
+    samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_oct2024.RDS')
+
+    mcmc_summary_Cmodel6_samplesListfromRDS<-MCMCsummary(samplesList6a,round=4,probs=c(0.05,0.95),pg0=TRUE)%>%
+      tibble::rownames_to_column()%>%
+      rename_with(str_to_title)%>%
+      rename('pg0'='P>0')%>%
+      mutate(pg00 = case_when(Mean >= 0 ~ as.numeric(pg0), Mean < 0 ~ 1-as.numeric(pg0), .default = as.numeric(pg0)))%>%
+      rename(Parameter = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
+      mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
+      dplyr::select(-lower,-upper,-Sd, -pg0)%>% 
+      filter(Parameter!='value[1]', Parameter!='value[2]', Parameter!='g[2]', Parameter!='g[1]')%>%
+      flextable()%>%
+      theme_zebra()%>%
+      set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
+      align(align = 'center', part = 'all')%>%
+      font(fontname = 'Arial', part = 'all')%>%
+      color(color='black',part='all')%>%
+      fontsize(size = 10, part = 'all')%>%
+      autofit()
+    mcmc_summary_Cmodel6_samplesListfromRDS
+    
+    save_as_image(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_oct2024.png',res=850)  
+    save_as_docx(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_oct2024.docx')  
+    
+    # grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
+    
+    d6 <- gather_draws(samplesList6a,path[])%>%
+      group_by(.chain)%>%
+      mutate(pathID = paste0('path',rep(1:6, each=4000)))%>% 
+      mutate(pathIDnum = rep(1:6, each=4000))%>%
+      ungroup() # each path estimate for each chain (of 3) in order, starting with path[1] first estimate in chain 1 
+    
+    # use tidybayes to plot 
+    
+    caterpillars <- ggplot(d6, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value))+
+      stat_pointinterval(.width=c(.50,.8),point_size=2)+
+      ylab('Path ID')+
+      xlab('Parameter Estimate & CI')+
+      geom_vline(xintercept=0,linetype=3)+
+      guides(col = 'none')+
+      theme_bw()
+    caterpillars  
+    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot__model6_niter5000_burn1000_chains3_oct2024.png',device='png',dpi=400,width=5,height=4,units='in')
+    
+
+    
+
+
+
+
+
     
 ##################### 
-## - MODEL5A:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure. Updated July 2024 with Driscoll BRUVS from 2018 and Bullock BRUVS from 2014 (from publically available dataset) with maxN calculated for the four families 
+## - MODEL5A:  Paths informed by hypothesis testng and dredge models - Relative predation risk not pressure. Updated July 2024 with Driscoll BRUVS from 2018 and Bullock BRUVS from 2014 with maxN calculated for the four families. 
     
     modelCode5a<-nimbleCode({
       

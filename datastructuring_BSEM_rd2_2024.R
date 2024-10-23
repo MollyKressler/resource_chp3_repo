@@ -17,7 +17,9 @@
 	# put together receiver/pointdata modelling dataframes at low and high tide, standardise and mean centre variables, z.logit transform predation. 
 
 	
-	#### YOU LEFT OF ON 21/08, having processed predator and uvenile data into full dataframes. what's missing from those are BRT prediction of prey MaxN. You have not done any of the  BRUVs data handling because you are waiting to get data on tide from Sarah Driscoll. You can find this information in her thesis if you want to extract it. but give her 1-2 weeks and then crcle back to this. 
+	#### ON 21/08, you left off having processed predator and juvenile data into full dataframes. what's missing from those are BRT prediction of prey MaxN. You have not done any of the  BRUVs data handling because you are waiting to get data on tide from Sarah Driscoll. You can find this information in her thesis if you want to extract it. but give her 1-2 weeks and then circle back to this. 
+
+	## Have picked it back up with tide data  - 4 Oct 2024
 
 pacman::p_load(tidyverse,fuzzyjoin,lubridate,sf,ggplot2,cowplot,patchwork,flextable,sf,ggsn,dismo,gbm)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
@@ -361,8 +363,226 @@ r.df <- as_tibble(r.set) %>% dplyr::select(-geometry)
 	#####
 		st_write(pointdata, 'pointdata_juvlemons_withTidewithHab_MKthesis20192020.shp', driver = 'ESRI Shapefile')
 		st_write(pointdata, 'pointdata_juvlemons_withTidewithHab_MKthesis20192020.csv', driver = 'CSV')
-		test<-st_as_sf(st_read('pointdata_juvlemons_withTidewithHab_MKthesis20192020.shp'))
-		test
+		## this is the juvenile detections at receivers modelling dataframe, with 0s at receivers where individuals were not detected (N = 35 total receivers * 16 individuals = 560 observations *2 tides = 1120 rows). h predation at L or H tide based, juv Pr(use) at L or H tide from Chp 2, and predict BRTs in)
+
+####
+## - Juveniles Pointdata: juveniles, with risk, with habitat, ADD BRT predictions
+####
+
+## levels of data structures
+buffs<-st_as_sf(st_read('buffers20192020_withEmilyCourmierhabitat_data4Winter2020.shp'),crs='WGS84')%>%
+	mutate(buff_ar=st_area(geometry),buffID=as.factor(buffID))%>%
+	distinct()%>%
+	group_by(buffID)%>%slice(1) # for reasons I don't know why, r18 has two rows of the same value 
+	summary(buffs)
+
+r.total <- st_as_sf(st_read('receivers_in_thesis_data_dec2023_withEC2020Habdata.shp'), crs = 'WGS84')%>%
+		dplyr::select(-arbitr_ID)
+
+hex <-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')
+
+
+# Collate BRUVs data 
+
+bruv <- read.csv('bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.csv')
+b.sf <- st_as_sf(st_read('bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.shp'), crs = 'WGS84')
+
+# Import BRT predictions for the pointdata 
+
+pointdata <- st_as_sf(st_read('pointdata_juvlemons_withTidewithHab_MKthesis20192020.shp'), crs = 'WGS84')
+
+####### YOU LEFT OFF HERE BECAUSE BRTS NEED TO HAVE TIDE IN THEM
+
+brt.pred.point <- st_as_sf(st_read('sf_with_predictions_INTO_BUFFERS_fromBRTs_oct2024.shp'), crs = 'WGS84')%>%
+	dplyr::select(tide,maxN_preds, geometry)
+
+# have to do it for tides separately because I can't figure out a grouping st_join work around
+
+brt_l <- brt.pred.point %>% filter(tide == 'L')
+brt_h <- brt.pred.point %>% filter(tide == 'H')
+
+pointL <- pointdata %>% filter(tidephs == 'L')
+pointH <- pointdata %>% filter(tidephs == 'H')
+
+low <- st_join(pointL, brt_l%>%dplyr::select(-tide), st_nearest_feature)
+high <- st_join(pointH, brt_h%>%dplyr::select(-tide), st_nearest_feature)
+
+pointdata2 <- bind_rows(low,high) %>%
+	mutate(st_maxN = (maxN_preds - mean(maxN_preds))/sd(maxN_preds), .before = 'geometry')
+stopifnot(nrow(pointdata)==nrow(pointdata2))
+
+	#####
+	## - save
+	#####
+		st_write(pointdata2, 'pointdata_juvlemons_withAllCoV_MKthesis20192020.shp', driver = 'ESRI Shapefile')
+		st_write(pointdata2, 'pointdata_juvlemons_withAllCoV_MKthesis20192020.csv', driver = 'CSV')
+
+### see below in hexdata for notes on seagrasses. 
+## action: new variable 'prp_SG' = prp_mds + prp_hds, check that the value is never greater than 1. Then standardise prp_SG. 
+
+point <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'), crs = 'WGS84')
+
+pointd <- point %>%
+	mutate(prop_SG = prop_mdsg + prop_hdsg, .before = 'dist_cmg')%>%
+	mutate(st_SG = (prop_SG - mean(prop_SG))/sd(prop_SG), .before = 'geometry')
+summary(pointd) # prop_SG - never more than 1. 
+
+d <- st_as_sf(st_read('biminireceivers_withLocations_20190414to20201213.shp'),crs='WGS84')%>% dplyr::select(depth) # depth of receiver metadata
+d2 <- d%>%distinct()%>%st_as_sf()
+
+pointda <- pointd %>%
+	st_join(.,d2, st_nearest_feature)%>%
+	mutate(st_depth = (depth - mean(depth))/sd(depth), .before = 'geometry')
+
+
+	#####
+	## - save
+	#####
+		st_write(pointda, 'pointdata_juvlemons_withAllCoV_MKthesis20192020.shp', driver = 'ESRI Shapefile')
+		st_write(pointda, 'pointdata_juvlemons_withAllCoV_MKthesis20192020.csv', driver = 'CSV')
+
+###########################
+
+
+
+
+
+##########
+## - Juveniles hexdata from chp2 publication, with tides. 
+##########
+
+# Update the habitat in grid cells. DON'T reproject Pr(use) based on new EC2020 habitat data 
+
+hex <-st_as_sf(st_read('winter2020habitat_hexagon_grid_NOland_ECdata.shp'),crs='WGS84')
+
+pruse <- st_as_sf(st_read('habitat_model/no ghosts of 6hr threshold/habitatmodel_preds_method5_withANDwithoutREFUGE_ghostsremoved_glmers_dec22_updatedhabitat.shp'), crs = 'WGS84')%>%
+	dplyr::select(tidephs,AIC_m5_,jcode)%>%
+	rename(method5_PrUSE=AIC_m5_)%>%
+	st_intersection(st_union(hex)) # wider spatial area than hex.
+
+hexdata <- pruse%>%
+	st_join(., hex, st_nearest_feature)%>%
+	dplyr::select(-jcode.y)%>%
+	rename(jcode = jcode.x)
+
+	hexdata %>% filter(jcode == 1461)
+
+# Import and join with BRT predictions of prey maxN 
+
+pred <- st_as_sf(st_read('predictions_hex_from_simplifiedBRTs_maxN_oct24.shp'), crs='WGS84')%>%
+	dplyr::select(tide, maxN_preds)
+	# needs to join by jcode and tidephs
+
+# have to do it for tides separately because I can't figure out a grouping st_join work around
+
+pl <- pred %>% filter(tide == 'L')
+ph <- pred %>% filter(tide == 'H')
+
+hexL <- hexdata %>% filter(tidephs == 'L')
+hexH <- hexdata %>% filter(tidephs == 'H')
+
+low <- st_join(hexL, pl%>%dplyr::select(-tide), st_nearest_feature)
+high <- st_join(hexH, ph%>%dplyr::select(-tide), st_nearest_feature)
+
+hexdata2 <- bind_rows(low,high) %>%
+	mutate(st_maxN = (maxN_preds - mean(maxN_preds))/sd(maxN_preds), .before = 'geometry')
+
+# standardise all the variables
+
+hexdata3 <- hexdata2 %>%
+	mutate(
+		st_lds = (prp_lds - mean(prp_lds))/sd(prp_lds),
+		st_mds = (prp_mds - mean(prp_mds))/sd(prp_mds),
+		st_hds = (prp_hds - mean(prp_hds))/sd(prp_hds),
+		st_distcmg =(dist_cmg - mean(dist_cmg))/sd(dist_cmg),
+		st_d2shore = (dist2shore - mean(dist2shore))/sd(dist2shore),
+		st_maxN = (maxN_preds - mean(maxN_preds))/sd(maxN_preds),
+		.before = 'geometry')
+
+# add predator risk covariate
+
+prd <- st_as_sf(st_read('pointdata_juvlemons_withTidewithHab_MKthesis20192020.shp'), crs= 'WGS84')%>%
+	dplyr::select(st_risk, tidephs, buffID,geometry)%>%
+	group_by(buffID, tidephs)%>%
+	slice(2)
+prd # We're just going to use this df instead of the full predation one because the coverage of the receivers in this set is larger than the coverage in the hexdata anyway. So it is complete. 
+
+pl <- prd %>% filter(tidephs == 'L')
+ph <- prd %>% filter(tidephs == 'H')
+
+hexL <- hexdata3 %>% filter(tidephs == 'L')
+hexH <- hexdata3 %>% filter(tidephs == 'H')
+
+low <- st_join(hexL, pl%>%dplyr::select(-tidephs, -buffID), st_nearest_feature)
+high <- st_join(hexH, ph%>%dplyr::select(-tidephs, -buffID), st_nearest_feature)
+
+hexdata4 <- bind_rows(low,high) 
+
+
+######
+## Save the hexdata modelling df
+
+st_write(hexdata4, 'hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp', driver = 'ESRI Shapefile')
+st_write(hexdata4, 'hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv', driver = 'CSV')
+
+## seagrasses: won't carry the PCA across in the analysis since both medium and high density are in the BRTs. This has implications for hypothesis testing and the BSEM bc seagrasses are now across two metrics. This is fine for the paths where seagrass is a covariate, but complicates it for where it is the response. Modelling both would be overextending the data. Could model the composite value of the two where seagrass is the response but would need to re-standardise this value. IE add the prop raw values, and then standardise. 
+
+	## action: new variable 'prp_SG' = prp_mds + prp_hds, check that the value is never greater than 1. Then standardise prp_SG. 
+
+hex <- st_as_sf(st_read('hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp'), crs = 'WGS84')
+
+hexd <- hex %>%
+	mutate(prp_SG = prp_mds + prp_hds, .before = 'dst_cmg')%>%
+	mutate(st_SG = (prp_SG - mean(prp_SG))/sd(prp_SG), .before = 'geometry')
+summary(hexd) # never more than 1. 
+
+
+
+## Add depth from nearest receiver 
+hex <- st_as_sf(st_read('hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp'), crs = 'WGS84')
+
+d <- st_as_sf(st_read('biminireceivers_withLocations_20190414to20201213.shp'),crs='WGS84')%>% dplyr::select(depth) # depth of receiver metadata
+d2 <- d%>%distinct()%>%st_as_sf()
+
+hexd <- hex %>%
+	st_join(.,d2, st_nearest_feature)%>%
+	mutate(st_depth = (depth - mean(depth))/sd(depth), .before = 'geometry')
+hexd %>% filter(jcode == 1461)
+
+## Add dist2jetty
+r <- st_as_sf(st_read('receivers_in_thesis_data_dec2023.shp'),crs='WGS84') # receiver array used in thesis (n = 54)
+
+jt<-st_zm(st_read('boatlaunchesBimini.kml'),crs='WGS84')%>%
+mutate(jetty=seq(1,15,1),.before='geometry')%>%
+dplyr::select(-Description) # jetties visible from Google Earth in Bimini. NOT including small single residence jetties. 
+
+nj1 <- tibble(jcode = hexd$jcode, nj = st_nearest_feature(hexd, jt))%>%
+	distinct(jcode, .keep_all = TRUE)
+nj2 <- left_join(hexd, nj1, by = 'jcode')%>%
+		rename(jetty = nj, jcode_geo = geometry)
+
+j3 <- as.data.frame(nj2) %>% dplyr::select(jetty) 
+j4 <- left_join(jt ,j3, multiple = 'all', by = 'jetty')%>%
+		rename(jID = jetty, jetty_geo = geometry)
+
+nj22 <- bind_cols(nj2, j4)%>%
+	dplyr::select(-jID, -Name)%>%
+	mutate(center = st_centroid(st_geometry(st_make_valid(jcode_geo))))%>%
+	mutate(dist2jetty = as.numeric(st_distance(center,jetty_geo, by_element = TRUE)),.before = jcode_geo)
+# clean it up 
+
+hexdata <- nj22 %>%
+	dplyr::select(-center, -jetty_geo, -jetty)%>%
+	rename(geometry = jcode_geo)%>%
+	mutate(st_d2jetty = (dist2jetty - mean(dist2jetty))/sd(dist2jetty), .before = 'geometry')
+hexdata
+
+	######
+	## Save the hexdata modelling df
+
+	st_write(hexdata, 'hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp', driver = 'ESRI Shapefile')
+	st_write(hexdata, 'hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv', driver = 'CSV')
+
 
 
 
