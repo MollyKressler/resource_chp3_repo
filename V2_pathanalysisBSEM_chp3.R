@@ -161,7 +161,7 @@ summary(hexdata)
     #########################################################
     ######### Likelihoods - data and process models ######### 
 
-    ## glm for the effect of tide (only), informed by local knowledge of the impact of tides 
+    ## glmm for the effect of tide (only), informed by local knowledge of the impact of tides 
       for(i in 1: point.N){
         standard.shark4[i] ~ dnorm(tideonly.mu[i], tau.shark)
 
@@ -309,7 +309,7 @@ summary(hexdata)
     
     saveRDS(samples6,'resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_oct2024.RDS')
 
-    mcmc_summary_Cmodel6<-MCMCsummary(samples6,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
+    mcmc_summary_Cmodel6<-MCMCsummary(samplesList6a,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
       tibble::rownames_to_column()%>%
       rename_with(str_to_title)%>%
       rename(Parameter = Rowname)%>%
