@@ -61,6 +61,19 @@ summary(pointdata)
 		pointflex
 		save_as_image(pointflex, 'resource_chp3/forgraphicalmethodsfigure_chapter3_datapreparation_POINTDATA_oct2024.png',webshot='webshot')
 
+    #correction from internal examiner: add relative proportion of detections of juveniles to path inference figure.
+    #summarise across tidal phases (L/H)
+    names(pointdata)
+    point.sf <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'),crs = 'WGS84')
+    total = sum(point.sf$n_juv)
+    sum.dett <- point.sf %>% 
+      dplyr::select(buffID, n_juv, tidephs,geometry) %>%
+      group_by(buffID)%>%
+      summarise(n = sum(n_juv))%>%
+      st_as_sf()
+    sum.dett
+
+
 ####################################################
 ###### DF 2, for process model for fishiness  ######
 
@@ -101,15 +114,12 @@ summary(hexdata)
     ######### priors #########
     
     #### prior for sharkiness #### 
-    for(i in 1:8){
+    for(i in 1:7){
        a[i] ~ dnorm(0,.01) 
       }
     for(i in 1:2){
        g[i] ~ dnorm(0,.01)# for pred and fish only models, for interpretting coefficients 
       }
-    for(i in 1:1){
-      h[i] ~ dnorm(0, 0.01) # for tide on sharks - the difference between high and low tide 
-    }
       # prior for residual variance - sharks 
       tau.shark ~ dgamma(0.01,0.01) 
       sigma.shark <- sqrt(1/tau.shark)
@@ -117,7 +127,7 @@ summary(hexdata)
       sigma.shark.hex <- sqrt(1/tau.shark.hex)
     
     #### prior for predators #### 
-    for(i in 1:4){
+    for(i in 1:5){
        e[i] ~ dnorm(0,.001) 
       }
       # prior for intercept - sharks 
@@ -160,14 +170,6 @@ summary(hexdata)
 
     #########################################################
     ######### Likelihoods - data and process models ######### 
-
-    ## glmm for the effect of tide (only), informed by local knowledge of the impact of tides 
-      for(i in 1: point.N){
-        standard.shark4[i] ~ dnorm(tideonly.mu[i], tau.shark)
-
-        tideonly.mu[i] <- epsi_shark[buffID[i]] + h[1]*pointtide[i] 
-      }
-
      ## informed by hypothesis exploration 
 
     ### data model for seagrasses - hexagons
@@ -185,25 +187,25 @@ summary(hexdata)
 
       # glm for the effect of fish (only)
       standard.hexshark[i] ~ dnorm(fishonly.mu[i], tau.shark.hex)
-      fishonly.mu[i] <- d + g[1]*standard.hexfish[i]
+      fishonly.mu[i] <- d + g[1]*standard.hexfish[i] 
     }
   
     ### data model for large shark detectons - point data 
      for(i in 1:point.N){
       zlogit.sqzrisk[i] ~ dnorm(pred.mu[i], tau.pred)
 
-      pred.mu[i] <- f + e[1]*standard.pointdist2shore[i] + e[2]*standard.pointdepth[i] + e[3]*standard.pointdistcmg[i] + e[4]*standard.pointdepth[i]*standard.pointdistcmg[i]
+      pred.mu[i] <- f + e[1]*standard.pointdist2shore[i] + e[2]*standard.pointdepth[i] + e[3]*standard.pointdistcmg[i] + e[4]*standard.pointdepth[i]*standard.pointdistcmg[i]+ e[5]*pointtide[i]
+
 
       ## glm for the effect of predation (only) 
       standard.shark3[i] ~ dnorm(predonly.mu[i], tau.shark)
       predonly.mu[i] <-  epsi_shark[buffID[i]] + g[2]*zlogit.sqzrisk.pred[i]
-
      }
 
     ### data model for sharkiness - pointdata
      for(i in 1:point.N){
       standard.shark[i] ~ dnorm(shark.mu[i],tau.shark)   
-      shark.mu[i] <- epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.pointdist2shore[i] + a[3]*standard.pointdistcmg[i] + a[4]*standard.sg[i] + a[5]*standard.pointdepth[i]+ a[6]*standard.pointdist2jetty[i]+ a[7]*zlogit.sqzrisk[i] + a[8]*pointtide[i]
+      shark.mu[i] <- epsi_shark[buffID[i]] + a[1]*standard.fish.pred[i] + a[2]*standard.pointdist2shore[i] + a[3]*standard.pointdistcmg[i] + a[4]*standard.sg[i] + a[5]*standard.pointdepth[i]+ a[6]*standard.pointdist2jetty[i]+ a[7]*zlogit.sqzrisk[i] 
 
       }  
 
@@ -211,23 +213,16 @@ summary(hexdata)
     # for estmating total pathways 
     ## coefficients for distance metrics are from process models of those predictors. leave out coefficients for interactions if the fixed effects coefficients are already included.
 
-    path[1] <-  a[4] + h[1] # seagrass and tide
+    path[1] <-  a[4] * j[1] * j[2] * j[3] # seagrass and abiotics
 
-    path[2] <-  a[1] + c[1] + c[2] + c[3] + c[4] + a[8] # fish, the things that effect fish, and tide
+    path[2] <-  a[1] * c[1] * c[2] * c[3] * c[4] * c[6] # fish, the things that effect fish, and tide
 
-    path[3] <-  a[7] + e[1] + e[2] + e[3] + a[8] # predator risk, the things that effect risk, and tide
+    path[3] <-  a[7] * e[1] * e[2] * e[3] * e[5] # predator risk, the things that effect risk, and tide
 
-    path[4] <-  a[8] + a[2] + a[3] + a[4] + a[5] + a[6] # tide - should it have abiotics in it? tide in the context of the habitat? Because similiarly you have 'plain' coefficiednt estimates g1 an g2 for fish and pred. 
+    ## need to calculate the values from the abiotics along the paths to the initial parameter, for ease
 
-    path[5] <-  a[7] + e[1] + e[2] + e[3] # predator risk, the things that effect risk, no tide
-
-    path[6] <-  a[1] + c[1] + c[2] + c[3] + c[4] # fish, the things that effect fish, no tide
-
-    ## need to calculate the values from the abiotics along the paths to the initial parameter, e.g. abtiocs to fishes in path 1. 
-
-    value[1] <-  j[1] * j[2] * j[3]  # path 2, shore * refuge * jetty
-    value[2] <- e[1] * e[2] * e[3] * e[4] # path 3, shore * jetty * depth 
-    value[3] <- a[2] + a[3] + a[4] + a[5] + a[6]  # abiotics in path 4 for tide
+    value[1] <-  c[1] * c[2] * c[3] * c[4]   # path 2, abiotics
+    value[2] <- e[1] * e[2] * e[3]  # path 3, abiotics
 
   }) # end of model code 
 
@@ -251,7 +246,6 @@ summary(hexdata)
       zlogit.sqzrisk = pointdata$st_risk,
       zlogit.sqzrisk.pred = pointdata$st_risk,
       standard.shark3 = pointdata$st_shark,
-      standard.shark4 = pointdata$st_shark,
       pointtide = pointdata$tide,
       # hex data 
       standard.hexfish = hexdata$st_maxN,
@@ -265,18 +259,17 @@ summary(hexdata)
       standard.hexsg = hexdata$st_SG
       )
     
-    init.values6<-list(a=rnorm(8,0,1),
+    init.values6<-list(a=rnorm(7,0,1),
                         b=rnorm(1),
                         c=rnorm(6,0,1),
                         d=rnorm(1),
-                        e=rnorm(4,0,1),
+                        e=rnorm(5,0,1),
                         f=rnorm(1),
                         j=rnorm(4,0,1),
                         k=rnorm(1),
                         g=rnorm(2,0,1),
-                        h=rnorm(1,0,.1),
-                        path=rnorm(6,0,1),
-                        value=rnorm(3,0,.05),
+                        path=rnorm(3,0,1),
+                        value=rnorm(2,0,.05),
                         epsi_shark=rgamma(35,1,0.1),
                         tau.shark=rgamma(1,0.01,0.01),
                         tau.fish=rgamma(1,0.01,0.01),
@@ -300,16 +293,16 @@ summary(hexdata)
     ##########################
     
     ## model5
-    conf6<- configureMCMC(model6,monitors=c('a','b','c','d','j','k','e','f','g', 'h','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
+    conf6<- configureMCMC(model6,monitors=c('a','b','c','d','j','k','e','f','g','tau.epsi_shark','tau.fish','tau.shark','tau.pred','tau.hexsg','path','value'),onlySlice=FALSE) 
     MCMC_model6 <- buildMCMC(conf6,na.rm=TRUE)
     ccMCMC6 <-compileNimble(MCMC_model6, project = model6)
-    samples6 <- runMCMC(ccMCMC6,niter=5000, nburnin=1000, nchains=3,samplesAsCodaMCMC = TRUE) 
+    samples6 <- runMCMC(ccMCMC6,niter=10000, nburnin=2000, nchains=3,samplesAsCodaMCMC = TRUE) 
 
     summary(samples6)
     
-    saveRDS(samples6,'resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_oct2024.RDS')
+    saveRDS(samples6,'resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.RDS')
 
-    mcmc_summary_Cmodel6<-MCMCsummary(samplesList6a,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
+    mcmc_summary_Cmodel6<-MCMCsummary(samples6,round=4,pg0=TRUE,prob=c(0.05,0.95))%>%
       tibble::rownames_to_column()%>%
       rename_with(str_to_title)%>%
       rename(Parameter = Rowname)%>%
@@ -328,11 +321,11 @@ summary(hexdata)
     
     # caterpillar plots 
     
-    MCMCplot(samples6,ci=c(50,95),params=c('path')) # point = median, thick line = 50% CI, thin line = 95% CI 
+    MCMCplot(samples6,ci=c(50,80),params=c('path')) # point = median, thick line = 50% CI, thin line = 80% CI 
     
     # trace and density plots
     
-    MCMCtrace(samplesList6,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
+    MCMCtrace(samples6,pdf=TRUE,ind=TRUE, Rhat=TRUE, n.eff=TRUE) # ind = TRUE, separate density lines per chain. # pdf = FALSE, don't export to a pdf automatically. 
     
     
     ###########################################################
@@ -340,7 +333,7 @@ summary(hexdata)
     ###########################################################
     
     # import RDS, local macbook 
-    samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_oct2024.RDS')
+    samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.RDS')
 
     mcmc_summary_Cmodel6_samplesListfromRDS<-MCMCsummary(samplesList6a,round=4,probs=c(0.05,0.95),pg0=TRUE)%>%
       tibble::rownames_to_column()%>%
@@ -350,7 +343,7 @@ summary(hexdata)
       rename(Parameter = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
       mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
       dplyr::select(-lower,-upper,-Sd, -pg0)%>% 
-      filter(Parameter!='value[1]', Parameter!='value[2]', Parameter!='g[2]', Parameter!='g[1]')%>%
+      filter(Parameter!='value[1]', Parameter!='value[2]',Parameter!='value[3]')%>%
       flextable()%>%
       theme_zebra()%>%
       set_header_labels(rowname = 'Coefficient',SD='Sd')%>%
@@ -361,15 +354,15 @@ summary(hexdata)
       autofit()
     mcmc_summary_Cmodel6_samplesListfromRDS
     
-    save_as_image(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_oct2024.png',res=850)  
-    save_as_docx(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_oct2024.docx')  
+    save_as_image(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_jan2025.png',res=850)  
+    save_as_docx(mcmc_summary_Cmodel6_samplesListfromRDS,path='resource_chp3/nimblemodel_outputs/mcmcsamples__model6_niter5000_burn1000_chains3_jan2025.docx')  
     
     # grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
     
     d6 <- gather_draws(samplesList6a,path[])%>%
       group_by(.chain)%>%
-      mutate(pathID = paste0('path',rep(1:6, each=4000)))%>% 
-      mutate(pathIDnum = rep(1:6, each=4000))%>%
+      mutate(pathID = paste0('path',rep(1:3, each=8000)))%>% 
+      mutate(pathIDnum = rep(1:3, each=8000))%>%
       ungroup() # each path estimate for each chain (of 3) in order, starting with path[1] first estimate in chain 1 
     
     # use tidybayes to plot 
@@ -382,7 +375,7 @@ summary(hexdata)
       guides(col = 'none')+
       theme_bw()
     caterpillars  
-    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot__model6_niter5000_burn1000_chains3_oct2024.png',device='png',dpi=400,width=5,height=4,units='in')
+    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot__model6_niter5000_burn1000_chains3_jan2025.png',device='png',dpi=400,width=5,height=4,units='in')
     
 
     
@@ -1320,25 +1313,34 @@ summary(hexdata)
     
     samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
-    pointdata<-read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_JULY24.shp')
-    head(pointdata)
+    samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.RDS')
 
-    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')
-    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
-      rename(standard.hexshark = stndrd_hxs,
-        standard.hexfish = stndrd_hxf,
-        standard.hexdist2shore = stndrd_h2,
-        standard.hexdistcmg = stndrd_hxd,
-        standard.hexlowdensg = stndrd_hxl,
-        standard.hexmeddensg = stndrd_hxm,
-        standard.dist2jetty = stndrd_d2,
-        standard.depth = stndrd_d,
-        standard.sgPCA1 = st_PCA1,
-        zlogit.sqzrisk = zlgt_sq,
-        relPropPD = rlPrpPD
+    pointdata<-read.csv('pointdata_juvlemons_withAllCoV_MKthesis20192020.csv')%>%
+    mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+    mutate(buffIDnum = parse_number(buffID))
+
+    hexdata <- read.csv('hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv')%>%
+      mutate(st_shark = (m5_PUSE - mean(m5_PUSE))/sd(m5_PUSE))%>%
+      mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+      rename(
+        standard.hexdist2shore = st_d2sh, 
+        standard.hexdepth = st_depth,
+        standard.hexdistcmg = st_dstc,
+        hextide = tide,
+        zlogit.sqzrisk = st_risk
         )
-
-	
+    hexsf <- st_as_sf(st_read('hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp'),crs='WGS84')%>%
+      mutate(st_shark = (m5_PUSE - mean(m5_PUSE))/sd(m5_PUSE))%>%
+      mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+      rename(
+        standard.hexdist2shore = st_d2sh, 
+        standard.hexdepth = st_depth,
+        standard.hexdistcmg = st_dstc,
+        hextide = tide,
+        zlogit.sqzrisk = st_risk
+        )
+      nrow(hexsf) # should be 5296
+    
   ## Make test sample data frames - based on the hexagon df
 
   	hexsamp <- hexdata %>%
@@ -1347,40 +1349,19 @@ summary(hexdata)
 
 
   ## From model4 samplesList, make objects with all draws of each coeefficient from path 2 and path 3, e.g. j4. 
-  	# path 2: j4, c3, a1
-  	j4.ch<-c(samplesList4$chain1[,22],samplesList4$chain2[,22],samplesList4$chain3[,22])
-  	c3.ch<-c(samplesList4$chain1[,11],samplesList4$chain2[,11],samplesList4$chain3[,11])
-  	a1.ch<-c(samplesList4$chain1[,1],samplesList4$chain2[,1],samplesList4$chain3[,1])
-
   	# path 3: e1, e2, e3, e4, e5, a7
-  	e1.ch <-c(samplesList5a$chain1[,14], samplesList5a$chain2[,14],samplesList5a$chain3[,14] )
-  	e2.ch <-c(samplesList5a$chain1[,15], samplesList5a$chain2[,15],samplesList5a$chain3[,15] )
-  	e3.ch <-c(samplesList5a$chain1[,16], samplesList5a$chain2[,16],samplesList5a$chain3[,16] )
-    e4.ch <-c(samplesList5a$chain1[,17], samplesList5a$chain2[,17],samplesList5a$chain3[,17] )
-    # not in july2024 model5a. e5.ch <-c(samplesList5a$chain1[,18], samplesList5a$chain2[,18],samplesList5a$chain3[,18] )
-  	a7.ch <-c(samplesList5a$chain1[,7], samplesList5a$chain2[,7],samplesList5a$chain3[,7] )
-
+  	e1.ch <-c(samplesList6a$chain1[,16], samplesList6a$chain2[,16],samplesList6a$chain3[,16] )
+  	e2.ch <-c(samplesList6a$chain1[,17], samplesList6a$chain2[,17],samplesList6a$chain3[,17] )
+  	e3.ch <-c(samplesList6a$chain1[,18], samplesList6a$chain2[,18],samplesList6a$chain3[,18] )
+    e5.ch <-c(samplesList6a$chain1[,20], samplesList6a$chain2[,20],samplesList6a$chain3[,20] )
+  	a7.ch <-c(samplesList6a$chain1[,7], samplesList6a$chain2[,7],samplesList6a$chain3[,7] )
   ## Run loops for each path, to calculate path estimate given a hexagon cell
 
-    	## Variable-Coefficient key
-    		# j4 = dist2shore * distcmg
-    		# c3 = seagrasses
-    		# a1 = fish
-    		# e1 = dist2shore
-    		# e2 = depth
-    		# e3 = dist2jetty
-        # e4 = distcmg
-    		# e5 = dist2jetty*depth
-    		# a7 = predator pressure
-
     	## Define size of objects/matrices
-    	J = 3 * 4000 # chains x iterations, 8000 in June, 4000 in July
+    	J = 3 * 8000 # chains x iterations, 8000 in June, 4000 in July, 8000 in january
     	n.hex = nrow(hexdata)	
 
     	## set up prediction df
-
-    		preds.path2 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
-    		head(preds.path2)
 
     		preds.path3 = as.data.frame(matrix(NA,ncol = J, nrow = n.hex))
     		head(preds.path3)
@@ -1389,26 +1370,16 @@ summary(hexdata)
     	## write progress bar function
     		pb <- txtProgressBar(min = 1, max = n.hex, style = 3)
 
-    	## path 2 loop
-    		for(i in 1:n.hex){
-    		  for(j in 1:J){
-    		    preds.path2[i,j] <- (j4.ch[j]*hexdata$standard.hexdist2shore[i]*hexdata$standard.hexdistcmg[i]) + (c3.ch[j]*hexdata$st_PCA1[i]) + (a1.ch[j]*hexdata$standard.hexfish[i])
-    		  } 
-    		  	setTxtProgressBar(pb, i)
-    		}
-    	
     	## path 3 loop
     	for(i in 1:n.hex){
     		setTxtProgressBar(pb, i)
     		for(j in 1:J){
-    			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.depth[i]) + (e3.ch[j]*hexdata$standard.dist2jetty[i]) + (e4.ch[j]*hexdata$standard.hexdistcmg[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
+    			preds.path3[i,j] <-  (e1.ch[j]*hexdata$standard.hexdist2shore[i]) + (e2.ch[j]*hexdata$standard.hexdepth[i]) + (e3.ch[j]*hexdata$standard.hexdistcmg[i]) + (e5.ch[j]*hexdata$hextide[i]) + (a7.ch[j]*hexdata$zlogit.sqzrisk[i]) 
     		}
-    	};beep(3)
-          ### not in july2024:  (e5.ch[j]*hexdata$standard.depth[i]*hexdata$standard.hexdistcmg[i])
+    	}
 
     	## save calculations
-        saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model5aJuly2024_calcJuly2024.RData')
-        saveRDS(preds.path2,'resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
+        saveRDS(preds.path3,'resource_chp3/path_inference/path3_estimates_at_hexagons_model6aJuly2024_calcJan2025.RData')
 
   ## Calculate marginal means, and HDI (highest density intervals)
 
@@ -1437,51 +1408,28 @@ summary(hexdata)
   			p3pred[i,4] <- hdi(preds.path3[i,])[1]
   		};beep(3)
 
-  		head(p2pred)
-  		nrow(p2pred)
   		head(p3pred)
 
   	## Updated approach: 5 March 2024
-  	p2 <- readRDS('resource_chp3/path_inference/path2_estimates_at_hexagons_model4may2024_calcMay2024.RData')
-  	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model5aJuly2024_calcJuly2024.RData')
   	
-    hexdata <- read.csv('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.csv')%>%mutate(jcode=as.character(jcode))
+  	p3 <- readRDS('resource_chp3/path_inference/path3_estimates_at_hexagons_model6aJuly2024_calcJan2025.RData')
+  	
+    hexdata <- read.csv('hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv')%>%mutate(jcode=as.character(jcode))
       head(hexdata)
 
-  	## re-format data
-  	dat.p2 <- as.matrix(p2)
-  	dat.p2<-dat.p2[,-1]
-  	dat.p2[1:10,1:10]
-  	dim(dat.p2)[2]
-  			# rowMeans(dat)[1]
-  			# mean(dat[1,])
-  			# hdi(dat[1,])[1]
-
-  	out.p2 <- data.frame(
-  		  Index = rep(0,dim(dat.p2)[1]),
-  		  Mean = rep(0,dim(dat.p2)[1]),
-  		  Low = rep(0,dim(dat.p2)[1]),
-  		  Upp = rep(0,dim(dat.p2)[1]))
-
+  	## re-format data - but tides! predictiosn follow the hexdata index order - which puts all LOW tide for each hexagon, then all high tide. So it will be 2648 rows of LOW + jcode, then 2648 rows of HIGH + jcode
   	dat.p3 <- as.matrix(p3)
   	out.p3 <- data.frame(
-  		  Index = rep(0,dim(dat.p3)[1]),
+        Index = rep(0,dim(dat.p3)[1]),
   		  Mean = rep(0,dim(dat.p3)[1]),
   		  Low = rep(0,dim(dat.p3)[1]),
   		  Upp = rep(0,dim(dat.p3)[1]))
+    head(out.p3)
 
-
-  	## calculate means and HDIs for each hexagon
-  	for(i in 1:dim(dat.p2)[1]){
-  		  out.p2$Index[i] = i
-  		  out.p2$Mean[i] = mean(dat.p2[i,])
-  		  out.p2$Low[i] = HDInterval::hdi(dat.p2[i,])[1]
-  		  out.p2$Upp[i] = HDInterval::hdi(dat.p2[i,])[2]
-  		  } # takes a beat
-    	head(out.p2)
+  	## calculate means and HDIs for each hexagon at each tidephs
   	
   	for(i in 1:dim(dat.p3)[1]){
-  		  out.p3$Index[i] = i
+        out.p3$Index[i] = i
   		  out.p3$Mean[i] = mean(dat.p3[i,])
   		  out.p3$Low[i] = HDInterval::hdi(dat.p3[i,])[1]
   		  out.p3$Upp[i] = HDInterval::hdi(dat.p3[i,])[2]
@@ -1489,57 +1437,46 @@ summary(hexdata)
     	head(out.p3)
 
     	## attach jcodes back 
-    	out.p2 <- cbind(hexdata%>%dplyr::select('jcode'), out.p2)%>%
-    		dplyr::select(-Index)
-    	head(out.p2)
-    	
-    	out.p3 <- cbind(hexdata%>%dplyr::select('jcode'), out.p3)%>%
+    	out.p3 <- out.p3 %>%
+          mutate(jcode = hexdata$jcode, tidephs = hexdata$tidephs, .before = 'Index')%>%
     		dplyr::select(-Index)
     	head(out.p3)
 
   ## Save path estimates and path means + HDI dfs
 
-  	saveRDS(out.p2, 'resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')
-  	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
+  	saveRDS(out.p3, 'resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model6_jan2025.RData')
 
 ##################################################
 ## Path inference diagnostics ##
 ##################################################
 
 	## local R, macbook 
-	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
+
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model6_jan2025.RData')%>%
 		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')%>%
-		mutate(jcode = as.character(jcode))
+    summary(p3pred)
 
 ## histograms of HDIs
-	p2up <- ggplot(data=p2pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
-    theme_bw()  + 
-    labs(subtitle = 'A') + 
-    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
 
-	p2low <- ggplot(data=p2pred, aes(x=Low))+geom_histogram(binwidth=.2, fill='#143B43', col='#143B43',lwd=0.05) + 
+  p3up <- ggplot(data=p3pred, aes(x = Upp, fill = tidephs))+
+    geom_histogram(binwidth=.2,lwd=0.05) + 
     theme_bw() + 
-    labs(subtitle = 'B') + 
-    theme(axis.title.x = element_blank(), axis.title.y = element_blank())+xlim(-4,4)
-	
-  p3up <- ggplot(data=p3pred, aes(x=Upp))+geom_histogram(binwidth=.2, fill='#020F75', col='#020F75',lwd=0.05) + 
-    theme_bw() + 
+    scale_fill_manual(values = c('#020F75','#c27dff'))+
     labs(subtitle = 'Upper') + 
     theme(axis.title.x = element_blank(), axis.title.y = element_blank(),plot.subtitle = element_text(face = "italic"))+
-    xlim(-4,4)
-	p3low <- ggplot(data=p3pred, aes(x=Low))+
-    geom_histogram(binwidth=.2, fill='#020F75', col='#020F75',lwd=0.05) + 
+    xlim(-2,3)+
+    guides(fill = 'none') # low is purple
+	p3low <- ggplot(data=p3pred, aes(x = Low, fill = tidephs))+
+    geom_histogram(binwidth=.2,lwd=0.05) + 
     theme_bw() + 
+    scale_fill_manual(values = c('#020F75','#c27dff'))+
     labs(subtitle = 'Lower') + 
     theme(axis.title.x = element_blank(), axis.title.y = element_blank(),plot.subtitle = element_text(face = "italic"))+
-    xlim(-4,4)
+    xlim(-3,3)+
+    guides(fill = 'none') 
 
-  hist.HDIs.path2.path3 <- p2up | p2low | p3up | p3low 
   hist.HDIs.path3 <-  p3up | p3low 
-
-  ggsave(hist.HDIs.path2.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path2and3.png', dpi = 850, units = 'in', height = 3, width = 8.5)
-  ggsave(hist.HDIs.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path3_model5_july24.png', dpi = 850, units = 'in', height = 3, width = 8.5)
+  ggsave(hist.HDIs.path3, file = 'resource_chp3/path_inference/histograms_HDIs_path3_model6_jan2025.png', dpi = 850, units = 'in', height = 3, width = 8.5)
  
 
 ##################################################
@@ -1547,25 +1484,23 @@ summary(hexdata)
 ##################################################
 	pacman::p_load(sf, ggplot2, patchwork,tidyverse)
   
-    hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
-      rename(standard.hexshark = stndrd_hxs,
-        standard.hexfish = stndrd_hxf,
-        standard.hexdist2shore = stndrd_h2,
-        standard.hexdistcmg = stndrd_hxd,
-        standard.hexlowdensg = stndrd_hxl,
-        standard.hexmeddensg = stndrd_hxm,
-        standard.dist2jetty = stndrd_d2,
-        standard.depth = stndrd_d,
-        standard.sgPCA1 = st_PCA1,
-        zlogit.sqzrisk = zlgt_sq,
-        relPropPD = rlPrpPD
-        )
+    hexsf <- st_as_sf(st_read('hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp'),crs='WGS84')%>%
+      rename(standard.hexfish = st_maxN,
+        standard.hexdist2shore = st_d2sh,
+        standard.hexdistcmg = st_dstc,
+        standard.hexlowdensg = st_dstc,
+        standard.hexmeddensg = st_mds,
+        standard.hexhighdensg = st_hds,
+        standard.dist2jetty = st_d2jetty,
+        standard.depth = st_depth,
+        standard.SG = st_SG,
+        zlogit.sqzrisk = st_risk
+        )%>%
+      mutate(jcode = as.character(jcode))
 
 	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
-	p2pred <- readRDS('resource_chp3/path_inference/path2_means_andHDI_at_heaxgons_model4_may2024.RData')%>%
-		mutate(jcode = as.character(jcode))
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
-
+	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model6_jan2025.RData')%>%
+    mutate(jcode = as.character(jcode))
 	head(p3pred)
 
 	## cut out the splattering of stuff to the south for plotting
@@ -1574,17 +1509,8 @@ summary(hexdata)
 		 southerninset <- st_crop(hexsf, c(xmin = -79.30, xmax=-79.31, ymin = 25.66, ymax = 25.68))
 	
 	## join spatial geomtry by jcode to preds
-		p2.sf <- st_as_sf(left_join(hexsf, p2pred, by='jcode'))%>%
-		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-		
-    p2.sf.cropped <- st_as_sf(left_join(hexsf2, p2pred, by='jcode'))%>%
-		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-		
-		p2.southerninset <- st_as_sf(left_join(southerninset, p2pred, by='jcode'))%>%
-		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-		
-		p3.sf <- st_as_sf(left_join(hexsf, p3pred, by='jcode'))%>%
-		  dplyr::select(jcode, Mean, Low, Upp, geometry)
+		p3.sf <- st_as_sf(left_join(hexsf, p3pred, by=c('tidephs','jcode')))%>%
+		  dplyr::select(jcode, tidephs, Mean, Low, Upp, geometry)
 
 		p3.sf.cropped <- st_as_sf(left_join(hexsf2, p3pred, by='jcode'))%>%
 		  dplyr::select(jcode, Mean, Low, Upp, geometry)
@@ -1592,94 +1518,105 @@ summary(hexdata)
 		p3.southerninset <- st_as_sf(left_join(southerninset,p3pred, by='jcode'))%>%
 		  dplyr::select(jcode, Mean, Low, Upp, geometry)
 
-	## path 2 plots - mean, upper, lower 
-
-  colours = c('#ffffff', '#666282','#3a6c74','#143B43')
-  colours.diff = c('#d2c9cf','#a097a6','#858093','#696b81','#4c566e','#2d435a','#063146') 
-	
-	 #scale_fill_steps(name = 'Mean', low = colours[1], high = colours[3],right = TRUE,space = 'Lab', guide = 'coloursteps', aesthetics = 'fill', breaks = c(-3,0,.2,.6),show.limits = TRUE, labels=scales::label_number(accuracy=0.1))+
-
-
-	p2.mean <- ggplot()+
-		theme_bw()+
-		geom_sf(data = p2.sf, aes(fill = Mean), lwd=0, col = 'white')+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Mean')+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1))
-	 p2.mean
-
-	p2.lower <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = Low), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Lower HDI')+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1),legend.direction = "horizontal", legend.position = "bottom")
-	p2.lower
-
-	p2.upper <- ggplot()+
-		geom_sf(data = p2.sf, aes(fill = Upp), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(-1,1), oob = scales::squish, name = 'Upper HDI')+
-	  theme_bw()+
-	  	theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")
-  p2.upper
-  
-    ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
-      p2.upper.diff <- ggplot()+
-        geom_sf(data = p2.sf, aes(fill = abs(Upp-Mean)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,0.75), oob = scales::squish, name = 'Upper HDI\n\ Absolute\n\ difference')+
-        theme_bw()+
-        theme(axis.text.x = element_text(angle=45, hjust = 1))
-      p2.upper.diff
-      
-      p2.lower.diff <- ggplot()+
-        geom_sf(data = p2.sf, aes(fill = abs(Mean-Low)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-		scale_fill_gradientn(colors = c('#C8D9DA', '#073B46'), limits = c(0,0.75), oob = scales::squish, name = 'Lower HDI\n\ Absolute\n\ difference')+
-        theme_bw()+
-        theme(axis.text.x = element_text(angle=45, hjust = 1))
-      p2.lower.diff
-      
-
-      
+    
 	## path 3 plots - mean, upper, lower 
+  relp.pointlocations <- st_as_sf(st_read('predators_pointdatasums_studyareaonly_withTidewithHab_MKthesis20192020.shp'))%>%
+    dplyr::select(buffID,tidephs,n,geometry)%>%
+    mutate(geometry = st_centroid(geometry))
+  r <- st_as_sf(st_read('predators_pointdatasums_studyareaonly_withTidewithHab_MKthesis20192020.shp'))%>%
+    dplyr::select(buffID,tidephs,n,geometry)
+
+  summary(p3.sf) #Mean (-1.5,1.6)
+  labels = c('High', 'Low', 'Lower','Upper')
+  names(labels) = c('H','L','Low','Upp')
 
   p3.mean <- ggplot()+
-    geom_sf(data = p3.sf, aes(fill = abs(Mean)), lwd=0)+
-    geom_sf(data = land, col = 'grey75', lwd=0.5)+
-    theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
-      theme(axis.text.x = element_text(angle=45, hjust = 1))
-   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_absolute_magnitude_of_effect_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
- 
+      geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
+      geom_sf(data = land, col = 'grey75', lwd=0.5)+
+      geom_sf(data = relp.pointlocations, col = '#727272', pch = 4, size = 0.35)+
+      geom_sf(data = relp.pointlocations%>%filter(n!=0), col = '#b27409', pch = 1, aes(size = n))+
+      scale_size_continuous(range = c(-1,15))+
+      facet_wrap(~factor(tidephs, levels = c('H','L'), labels = labels))+
+      theme_bw()+
+      scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-2,2), oob = scales::squish, name = 'Mean')+
+        theme(strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 12, hjust = 0))+
+        guides(size = 'none')+
+      scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
+     ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_withtop2RelRisk_jetties_model6_jan2025.png', device = 'png', unit = 'in', dpi = 900, height = 5)   
 
-  p3.mean <- ggplot()+
-    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
-    geom_sf(data = land, col = 'grey75', lwd=0.5)+
-    theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Mean')+
-      theme(axis.text.x = element_text(angle=45, hjust = 1))
-   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
- 
+  #difference at low versus high tide, juvenile shark detections
+  diff <- p3.sf %>%
+          dplyr::select(jcode, tidephs, Mean)%>%
+          pivot_wider(names_from = 'tidephs', values_from = 'Mean')%>%
+          mutate(absdiff.mean = abs(L-H), diff.mean = L-H)%>%
+          mutate(bins = case_when(
+              diff.mean < 0 ~ 'a.less',
+              diff.mean > 0 ~ 'b.more'
+            ))%>%
+          mutate(bins2 = case_when(
+              diff.mean < -0.01 ~ 'a1.less',
+              diff.mean > 0.1 ~ 'a3.more',
+              TRUE ~ 'a2.mid'
+            ))
+  diff
+  
+  p3.mean.absdiff.betweentides <- ggplot()+
+      geom_sf(data = diff, aes(fill = (absdiff.mean)), lwd=0)+
+      geom_sf(data = land, col = 'grey75', lwd=0.5)+
+      theme_bw()+
+      scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,0.4), oob = scales::squish, name = NULL)+
+      scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
+     ggsave(p3.mean.absdiff.betweentides, file = 'resource_chp3/path_inference/path3_absDifference_Mean_betweentides_model6_jan2025.png', device = 'png', unit = 'in', dpi = 900, height = 5,width=4)    
+  ## bin the color scale, i.e. negative to 0 = less juveniles atlow tide, 0 = no difference between tide times, 0 to positive = more juveniles at low tide. 
+    ## do it with data transformation bc ggpot scales are not working. 3 bins are a.less, b.zero, and c.more (added abc letters so they'd be in alphabetical order)
+  p3.mean.diff.betweentides <- ggplot()+
+      geom_sf(data = diff, aes(fill = bins), lwd=0)+
+      geom_sf(data = land, col = 'grey75', lwd=0.5)+
+      theme_bw()+
+      scale_fill_manual(values = c('#fafcfc','#073B46'))+
+      scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))+
+      guides(fill = 'none')+
+      ggtitle('Likelihood of use at low tide')
+     ggsave(p3.mean.diff.betweentides, file = 'resource_chp3/path_inference/path3_Difference_Mean_sharksatLowrelativetoHigh_model6_jan2025.png', device = 'png', unit = 'in', dpi = 900, height = 5,width=4)  
 
-	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = abs(Low)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")+
-    labs(subtitle = 'Lower')
-	 p3.lower
+  p3.mean.diff.betweentides <- ggplot()+
+      geom_sf(data = diff, aes(fill = bins2), lwd=0)+
+      geom_sf(data = land, col = 'grey75', lwd=0.5)+
+      theme_bw()+
+      scale_fill_manual(values = c('#f5fcfc','#a5d6d6','#073B46'))+
+      scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))+
+      #guides(fill = 'none')+
+      ggtitle('Likelihood of use at low tide')
+     ggsave(p3.mean.diff.betweentides, file = 'resource_chp3/path_inference/path3_Difference_Mean_morebins_sharksatLowrelativetoHigh_model6_jan2025.png', device = 'png', unit = 'in', dpi = 900, height = 5,width=4)  
 
-	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = abs(Upp)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")+
-    labs(subtitle = 'Upper')
-    p3.upper
+  ## plot all tide HDI in 2x2 panel
+  test <- p3.sf %>% dplyr::select(jcode,tidephs,Low,Upp, geometry) %>%
+      pivot_longer(values_to = 'value', names_to = 'HDI', cols = c(Low, Upp))
+  test
+
+   summary(p3.sf)
+
+  labels.HDI = c('Lower','Upper')
+  names(labels.HDI) = c('Low','Upp')
+  labels = c('High', 'Low')
+  names(labels) = c('H','L')
+
+  HDI_bytide <- ggplot(data = test)+
+      geom_sf(aes(fill = value), lwd=0)+
+      geom_sf(data = land, col = 'grey75', lwd=0.5)+
+      theme_bw()+
+      scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-2,2), oob = scales::squish, name = 'HDI value', position = 'bottom')+
+      scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))+
+      facet_grid(factor(HDI, levels = c('Low','Upp'), labels = labels.HDI) ~ factor(tidephs, levels = c('H','L'), labels = labels))+
+      theme(strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 12, hjust = 0.5),strip.text.y = element_text(angle = 0), legend.position = 'bottom')
+
+  ggsave(HDI_bytide, file = 'resource_chp3/path_inference/path3_HDI_by_tide_BOX_model6_jan2025.png', device = 'png', unit = 'in', dpi = 900, width = 5, height = 7)   
+     
 
 	  ## what if...plot the lower/uppder HDIs as the difference between mean and the HDI
         p3.upper.diff <- ggplot()+
@@ -1700,33 +1637,18 @@ summary(hexdata)
 
 
 	## various arrangements for pub
-		## just the means, side by side
 		p3mean.noyaxis <- p3.mean + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
     
-    means.. <- p2.mean + p3mean.noyaxis + plot_layout(guides = 'collect')
-    means..
-
-    p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
-    p2upper.noyaxis <- p2.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
-
-    p2.hdis.wide.axescollected <- p2.lower + p2upper.noyaxis 
-    p3.hdis.wide.axescollected <- (p3.lower | p3upper.noyaxis) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
-
-
 		## means with their HDIs, horizontal
     p3lower.noyaxis <- p3.lower + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
-    p2lower.noyaxis <- p2.lower + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
+    p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
 
-    p2.mean.hdis.wide <- p2.mean + p3lower.noyaxis + p2upper.noyaxis 
-		p3.mean.hdis.wide <- p3.mean + p2lower.noyaxis + p3upper.noyaxis 
+		p3.mean.hdis.wide <- p3.mean + p3lower.noyaxis + p3upper.noyaxis 
 		
 		## means with their HDIs, stacked
-		p2.mean.hdis.long <- p2.mean / p2.lower / p2.upper 
 		p3.mean.hdis.long <- p3.mean / p3.lower / p3.upper 
 
 		## means with their HDIs, means = 2 cols and big, hdis = 1 col small under means
-		p2.mean.diffshdis.square <- p2.mean / (p2.lower.diff | p2.upper.diff) + plot_layout(widths = c(1), heights = c(2,1))
-		p2.mean.hdis.square <- p2.mean / (p2.lower | p2.upper) + plot_layout(widths = c(1), heights = c(2,1))
 
 		p3.mean.hdis.square <- p3.mean / (p3.lower | p3.upper) + plot_layout(widths = c(1), heights = c(2,1))
 		p3.mean.diffshdis.square <- p3.mean / (p3.lower.diff | p3.upper.diff) + plot_layout(widths = c(1), heights = c(2,1))
@@ -1750,15 +1672,15 @@ summary(hexdata)
 
 	  ####### path 3 plots 
  
- 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, height = 7)
-		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p3.upper, file = 'resource_chp3/path_inference/path3_upperHDI_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
-		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
-		ggsave(p3.mean.hdis.long, file = 'resource_chp3/path_inference/path3_mean_andHDI_LONGpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
-		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
-		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial_may24.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
- 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_Absolute_effect_estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
+ 		ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_j_model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 7)
+		ggsave(p3.lower, file = 'resource_chp3/path_inference/path3_lowerHDI_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p3.upper, file = 'resource_chp3/path_inference/path3_upperHDI_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 4.5)
+		ggsave(p3.mean.hdis.wide, file = 'resource_chp3/path_inference/path3_mean_andHDI_WIDEpanel_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 6, width = 13)
+		ggsave(p3.mean.hdis.long, file = 'resource_chp3/path_inference/path3_mean_andHDI_LONGpanel_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 12, width = 4.5)
+		ggsave(p3.mean.hdis.square, file = 'resource_chp3/path_inference/path3_mean_andHDI_SQUAREpanel_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(p3.mean.diffshdis.square, file = 'resource_chp3/path_inference/path3_mean_and_diffsHDI_SQUAREpanel_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 8, width = 6)
+		ggsave(diffmean.p3, file = 'resource_chp3/path_inference/path3_HDIdifference_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, height = 4, width = 8)
+ 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel_Absolute_effect_estimates_spatial__model6_jan25.png', device = 'png', unit = 'in', dpi = 900, width = 8)
 
 		
  		ggsave(means.., file = 'resource_chp3/path_inference/path2_and_path3_mean_estimates_spatial_forpubs_collectedaxes_may24.png', device = 'png', unit = 'in', dpi = 900, height = 5, width = 7)

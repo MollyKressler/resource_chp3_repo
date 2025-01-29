@@ -362,10 +362,11 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ##############################################
 ## Table: pathway description, estimates, CI and Support ##
 ##############################################
-	
-	samplesList5a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model5a_niter5000_burn1000_chains3_July2024.RDS')
 
-	pathwayresults_table <- MCMCsummary(samplesList5a,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
+    ## need to calculate the values from the abiotics along the paths to the initial parameter, for ease
+  samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.RDS')
+
+	pathwayresults_table <- MCMCsummary(samplesList6a,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
 			tibble::rownames_to_column()%>%
 			rename_with(str_to_title)%>%
 		rename('pg0'='P>0')%>%
@@ -374,14 +375,14 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		rename(Pathway = Rowname, 'Prop. of posterior with \n\ same sign as estimate' = 'pg00', Estimate = 'Mean','lower'='5%',upper='95%')%>%
 		mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
 		mutate(Estimate = round(Estimate, 4))%>%
-		mutate(lower = case_when(Path == 3 ~ round(lower,3), Path !=3 ~ round(lower,4)),upper = case_when(Path == 3 ~ round(upper,3), Path !=3 ~ round(upper,4)))%>%
+		mutate(lower = case_when(Path == 3 ~ round(lower,5), Path !=3 ~ round(lower,5)),upper = case_when(Path == 3 ~ round(upper,4), Path !=3 ~ round(upper,5)))%>%
 		mutate(CI = paste0('[',lower,',',upper,']'),.after='Estimate')%>%
 		mutate('Standardised Estimate \n\ (95% credible interval)' = paste0(Estimate,' ',CI),.after='Pathway')%>%
 		mutate('Path' = parse_number(Pathway), .before = 'Pathway')%>%  
 		dplyr::select(-N.eff,-Rhat,-lower,-upper,-Estimate,-CI,-Sd, -pg0)%>%	
 		flextable()%>%
-			compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Seagrasses + Teleost fish'))%>%
-			compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Depth + Dist. to Shore +  \n\ Dist. to Jetty + Dist. to Refuge\n\ + Depth*Dist. to Jetty + Relative Risk'))%>%
+			compose(i=1,j=2, as_paragraph('Juvenile sharks ~ Dist. to Refuge + Dist. to Shore + \n\ Depth + Tide State + Relative Risk'))%>%
+			compose(i=2,j=2, as_paragraph('Juvenile sharks ~ Medium Density Seagrass +  \n\ High Density Seagrass +  Dist. to Jetty + Dist. to Shore\n\ + Tide State + Teleost fish'))%>%
 			compose(i=3,j=2, as_paragraph('Juvenile sharks ~ Dist. to Jetty + Dist. to Shore + \n\ Dist. to Refuge + Seagrasses'))%>%
 			align(j=3:4, align = 'center', part = 'all')%>%
 			align(j=1, align = 'center', part = 'all')%>%
@@ -392,8 +393,8 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 			theme_zebra()
 	pathwayresults_table
 
-	save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_July2024.png')	
-	save_as_docx(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_July2024.docx')	
+	save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.png')	
+	save_as_docx(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.docx')	
 
 
 ##############################################
@@ -472,30 +473,47 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
 			slice_max(relPropPD, n = 2)
 		jettys<- st_as_sf(st_read('boatlaunchesBimini.kml'),crs='WGS84')
+    
+    #correction from internal examiner: add relative proportion of detections of juveniles to path inference figure.
+    #summarise across tidal phases (L/H)
+    names(pointdata)
+    point.sf <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'),crs = 'WGS84')
+   	buffer.sf <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'),crs='WGS84')%>%
+   			distinct(buffID, .keep_all = TRUE)%>%
+   				dplyr::select(buffID, geometry)
+    total = sum(point.sf$n_juv)
+    sum.dett <- pointdata %>% 
+      dplyr::select(buffID, n_juv, tide) %>%
+      group_by(buffID)%>%
+      summarise(n = sum(n_juv))
+    sum.sf <- left_join(buffer.sf, sum.dett) %>%
+    		st_as_sf()%>%
+    		mutate(geometry = st_centroid(geometry))%>%
+    		st_crop(c(xmin = -79.23, xmax=-79.31, ymin = 25.68, ymax = 25.78))%>%
+    		st_as_sf()
+
+    p3.corrections <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
+    p3.sf <- st_as_sf(left_join(hexsf, p3.corrections, by='jcode'))%>%
+    dplyr::select(jcode, Mean, Low, Upp, geometry)
+
+   	p3.joined <- st_join(p3.sf, sum.dett, st_nearest_feature) 
 
 
-	  p3.mean.withlocations <- ggplot()+
-	    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
+	  p3.mean.corrections <- ggplot()+
+	    geom_sf(data = p3.joined, aes(fill = Mean),lwd=0)+
 	    geom_sf(data = land, col = 'grey75', lwd=0.5)+
 	    geom_sf(data = relp, col = 'purple3', pch = 19, size = 4.25)+
 			geom_sf(data = jettys, pch = 24, size = 3, col='goldenrod1',fill='goldenrod1')+
 	    theme_bw()+
 	    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1,0.5), oob = scales::squish, name = 'Mean')+
-	      theme(axis.text.x = element_text(angle=45, hjust = 1))
-	   ggsave(p3.mean.withlocations, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_withtop2RelRisk_jetties_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
-	 
+	    geom_sf(data = sum.sf,  shape = 16, col = '#000000', size = 0.5)+
+		  geom_sf(data = sum.sf, aes(size = n), shape = 16, col = 'grey25',alpha = 0.75)+
+		  scale_size_continuous(range = c(1, 12), breaks = c(0, 1000, 5000, 10000), name = "Detections \n(count)", labels = c(0, 1000, 5000, 10000))+
+	    scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.68,25.72,25.76))+
+	    scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.3,-79.28,-79.26,-79.24))
 
-
-
-
-
-
-
-
-
-
-
-
+	   ggsave(p3.mean.corrections, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_withtop2RelRisk_jetties_model5_CORRECTIONS.png', device = 'png', unit = 'in', dpi = 900, width = 5)
+ 
 
 
 
