@@ -378,10 +378,7 @@ summary(hexdata)
     ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot__model6_niter5000_burn1000_chains3_jan2025.png',device='png',dpi=400,width=5,height=4,units='in')
     
 
-    
-
-
-
+  
 
 
     

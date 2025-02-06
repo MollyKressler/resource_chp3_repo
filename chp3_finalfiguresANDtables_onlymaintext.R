@@ -3,7 +3,7 @@
 ## compiling code for figures in final manuscript, not including supporting information tables and figures
 
 #####
-pacman::p_load(sf, tidyverse, lubridate, ggplot2, patchwork, cowplot, flextable,MuMIn,ggplot2,lme4,stats,ggeffects,gtsummary, MCMCvis, viridis)
+pacman::p_load(sf, tidyverse, lubridate, ggplot2, patchwork, cowplot, flextable,MuMIn,ggplot2,lme4,stats,ggeffects,gtsummary, MCMCvis, viridis, tidybayes)
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd')
 #####
 
@@ -11,21 +11,33 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 ## Common dataframes and formatting
 ###################
-    hexdata <- read.csv('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.csv')
-    hexsf <- st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.shp'),crs='WGS84')%>%
-      dplyr::select(-stndrd_, -stndrd_r,-sqzrisk)%>%
-      rename(standard.hexshark = stndrd_hxs,
-        standard.hexfish = stndrd_hxf,
-        standard.hexdist2shore = stndrd_h2,
-        standard.hexdistcmg = stndrd_hxd,
-        standard.hexlowdensg = stndrd_hxl,
-        standard.hexmeddensg = stndrd_hxm,
-        standard.dist2jetty = stndrd_d2,
-        standard.depth = stndrd_d,
-        standard.sgPCA1 = st_PCA1,
-        logit.sqzrisk = lgt_sqz,
-        zlogit.sqzrisk = zlgt_sq,
-        relPropPD = rlPrpPD
+    hexdata <- read.csv('hexdata_juvLemonsPrUse_withAllCov_MKthesis.csv')%>%
+	    mutate(st_shark = (m5_PUSE - mean(m5_PUSE))/sd(m5_PUSE))%>%
+	    mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+      rename(standard.hexshark = st_shark,
+        standard.hexfish = st_maxN,
+        standard.hexdist2shore = st_d2sh,
+        standard.hexdistcmg = st_dstc,
+        standard.hexhighdensg = st_hds,
+        standard.hexmeddensg = st_mds,
+        standard.dist2jetty = st_d2jetty,
+        standard.depth = st_depth,
+        standard.SG = st_SG,
+        zlogit.sqzrisk = st_risk
+        )
+    hexsf <- st_as_sf(st_read('hexdata_juvLemonsPrUse_withAllCov_MKthesis.shp'),crs='WGS84')%>%
+	    mutate(st_shark = (m5_PUSE - mean(m5_PUSE))/sd(m5_PUSE))%>%
+	    mutate(tide = case_when(tidephs == 'L' ~ 1, tidephs == 'H' ~ 0))%>%
+      rename(standard.hexshark = st_shark,
+        standard.hexfish = st_maxN,
+        standard.hexdist2shore = st_d2sh,
+        standard.hexdistcmg = st_dstc,
+        standard.hexhighdensg = st_hds,
+        standard.hexmeddensg = st_mds,
+        standard.dist2jetty = st_d2jetty,
+        standard.depth = st_depth,
+        standard.SG = st_SG,
+        zlogit.sqzrisk = st_risk
         )
 
 ###################
@@ -105,45 +117,53 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		geom_sf(data = land, col = 'grey32',fill = NA, lwd = 0.25)+
 		theme_bw()+
-		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('2014')
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2014')+
+      scale_y_continuous(limits = c(25.665,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
 	plot2 <- ggplot()+
 		geom_sf(data=h18,aes(fill=feature,col=feature),lwd=0)+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		geom_sf(data = land, col = 'grey32',fill = NA, lwd = 0.25)+
 		theme_bw()+	
-		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('2018')
+		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2018')+
+      scale_y_continuous(limits = c(25.665,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
 	plot3 <- ggplot()+
 		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
-		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('2020')
+		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2020')+
+      scale_y_continuous(limits = c(25.665,25.78), breaks = c(25.70, 25.75))+
+      scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
 
 	plot <- (plot1 | plot2 | plot3) + plot_layout(guides = "collect") & theme(legend.position = 'bottom', text = element_text(size = 11))
-	ggsave(plot,file='habitat_bimini_wint14_summ18_wint20_ECdata.png',device='png',unit='in',height=5.5,width=8.5,dpi=950)
+	ggsave(plot,file='chp3_ms_v6_figures_tables/habitat_bimini_wint14_summ18_wint20_ECdata.png',device='png',unit='in',height=5.5,width=8.5,dpi=950)
 
 	# hab map, same hab data as above for 2020, but with additional information on jettys, receivers etc.
 	plot3b <- ggplot()+
 		geom_sf(data=h20,aes(fill=feature,col=feature),lwd=0)+
 		geom_sf(data=r%>%filter(sharks=='no'),fill='grey82', col='white',pch=22,size=2)+
 		geom_sf(data=r%>%filter(sharks=='yes'),fill='white', col='grey50',pch=21,size=2)+
+		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		geom_sf(data=cmg,pch=23,size=3,col='#FFFFFF',fill='#032D59')+
 		geom_sf(data = jettys, pch = 24, size = 1, col='goldenrod1',fill='goldenrod1')+
 		scale_fill_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den. Seagrass', 'Low Den. Seagrass', 'Medium Den. Seagrass', 'Vegetated'))+
-		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
-		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('2020')
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
+		ggtitle('2020')+
+      scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+
+      scale_x_continuous( breaks = c(-79.30,-79.25))
 
 		plot <- (plot1 | plot2 | plot3b) + plot_layout(guides = "collect") & theme(legend.position = 'bottom', legend.justification = 'centre',text = element_text(size = 11))
 		# save
-		ggsave(plot,file='habitat_bimini_wint14_summ18_wint20_withCoVdata4BSEM_ECdata.png',device='png',unit='in',height=5, width = 8.5, dpi=800)
+		ggsave(plot,file='chp3_ms_v6_figures_tables/habitat_bimini_wint14_summ18_wint20_withCoVdata4BSEM_ECdata.png',device='png',unit='in',height=5, width = 8.5, dpi=800)
 
 	# just 2020 alone with covariates data points 
 	plot3c <- ggplot()+
@@ -156,11 +176,13 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 		scale_colour_manual(name = 'Feature',values=c('grey72','cadetblue4','cadetblue2','cadetblue3','darkolivegreen4'), labels = c('Bare/Urban', 'High Den.\n\ Seagrass', 'Low Den.\n\ Seagrass', 'Medium Den.\n\ Seagrass', 'Vegetated'))+
 		geom_sf(data = land, col = 'grey32', fill = NA, lwd = 0.25)+
 		theme_bw()+
-		theme(legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
+		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
 		ggtitle('2020')+
-		guides(fill=guide_legend(nrow=2,byrow=TRUE))
+		guides(fill=guide_legend(nrow=2,byrow=TRUE))+
+    scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+
+    scale_x_continuous( breaks = c(-79.30,-79.25))
 
-		ggsave(plot3c,file='solohabbimini2020_withCoVforBSEM_ECdata.png',device='png',unit='in',width=5, height = 7,dpi=850)
+		ggsave(plot3c,file='chp3_ms_v6_figures_tables/solohabbimini2020_withCoVforBSEM_ECdata.png',device='png',unit='in',width=5, height = 7,dpi=850)
 
 ###################
 ## BRUVS locations map
@@ -186,184 +208,178 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 ###################
 ## MaxN predictions
 ###################
-	
-	preds <- st_as_sf(st_read('predictions_from_simplifiedBRTs_Gerreidae_and_sppRichness_june24.shp'), crs = 'WGS84')
+	##### BEFORE BRTS - at each site for SuppInfo
+	joined_df<-read.csv('bruvs2014AND2018_data_joinedWITHhabitat_summer18habANDwinter2014hab_july2024.csv')
 	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 
+	maxN.histogram <- ggplot(data = joined_df, aes(x=log(maxN+.1)))+
+		geom_histogram(binwidth = 0.1,alpha=0.75, fill = '#2b0052')+
+			xlab('MaxN (log+0.1)')+
+			theme_bw()
+
+	ggsave(maxN.histogram,file='resource_chp3/histogram_maxN_BRUVS_forSuppInfo.png',device=png,units='in',height=3,width=6,dpi=850)
+	ggsave(maxN.histogram,file='chp3_ms_v6_figures_tables/histogram_maxN_BRUVS_forSuppInfo.png',device='png',units='in',dpi=650, height = 3, width = 6)		
+ 	
+ 	#### BRT predictions
+
+	data <- hexsf %>% dplyr::select(jcode, tidephs,standard.hexfish,mxN_prd, geometry)
+	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
+	labels = c('High', 'Low')
+  names(labels) = c('H','L')
+
 	maxN.plot<-ggplot()+		
-		geom_sf(data=land,fill='gray75')+
-		geom_sf(data=preds,aes(fill=maxN_preds),col=NA)+
-		scale_fill_viridis(name='MaxN')+
-		geom_sf(data=land,fill='gray75')+
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+		geom_sf(data=data,aes(fill=mxN_prd),col=NA)+
+		scale_fill_gradientn(colors = c('#fafcfc', '#2b0052'), limits = c(0,70), name = 'MaxN', oob = scales::squish)+
 		theme_bw()+
-		theme(legend.position = 'bottom', legend.direction = 'horizontal')+
-		theme(axis.text.y = element_blank(),legend.position = 'bottom', legend.direction = 'horizontal', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('MaxN')
-	ggsave(maxN.plot,file='resource_chp3/BRTS_outputs/BRT_maxN_july2024/simplified_BRT_LOG_maxN_preds_july24.png',device='png',units='in',dpi=950,height=7,width=6)		
+		ggtitle('MaxN')+
+	 	facet_wrap(~factor(tidephs, levels = c('H','L'), labels = labels), ncol=2)+
+	  theme(legend.position = 'right',strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 10, hjust = 0), axis.text = element_text(size =10), plot.title = element_text(size = 10))+
+	  guides(size = 'none')+
+    scale_y_continuous(limits = c(25.665,25.78), breaks = c(25.70, 25.75))+
+    scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
 
+	ggsave(maxN.plot,file='chp3_ms_v6_figures_tables/simplified_BRT_LOG_maxN_preds_july24.png',device='png',units='in',dpi=650, height = 3.,width=5)		
+ 
 	# calculate CI (method 1)
-	result <- t.test(preds$maxN_preds)
-	result$conf.int
+		result <- t.test(preds$maxN_preds)
+		result$conf.int
 
-	# (method 2) R program to find the confidence interval
-	 
-	# Calculate the mean of the sample data
-	mean_value <- mean(preds$maxN_preds)
-	 
-	# Compute the size
-	n <- length(preds$maxN_preds)
-	 
-	# Find the standard deviation
-	standard_deviation <- sd(preds$maxN_preds)
-	 
-	# Find the standard error
-	standard_error <- standard_deviation / sqrt(n)
-	alpha = 0.05
-	degrees_of_freedom = n - 1
-	t_score = qt(p=alpha/2, df=degrees_of_freedom,lower.tail=F)
-	margin_error <- t_score * standard_error
-	 
-	# Calculating lower bound and upper bound
-	lower_bound <- mean_value - margin_error
-	upper_bound <- mean_value + margin_error
-	 
-	# Print the confidence interval
-	print(c(lower_bound,upper_bound)) # this is the same as call a t.test of the data column. 
+		# (method 2) R program to find the confidence interval
+		 
+		# Calculate the mean of the sample data
+		mean_value <- mean(preds$maxN_preds)
+		 
+		# Compute the size
+		n <- length(preds$maxN_preds)
+		 
+		# Find the standard deviation
+		standard_deviation <- sd(preds$maxN_preds)
+		 
+		# Find the standard error
+		standard_error <- standard_deviation / sqrt(n)
+		alpha = 0.05
+		degrees_of_freedom = n - 1
+		t_score = qt(p=alpha/2, df=degrees_of_freedom,lower.tail=F)
+		margin_error <- t_score * standard_error
+		 
+		# Calculating lower bound and upper bound
+		lower_bound <- mean_value - margin_error
+		upper_bound <- mean_value + margin_error
+		 
+		# Print the confidence interval
+		print(c(lower_bound,upper_bound)) # this is the same as call a t.test of the data column. 
 
 
 ###################
 ## Descriptive plots for predator metric: relative risk at receivers
 ###################
   N = 35
-	relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
-        mutate(sqzrisk = ((relPropPD*(N-1))+0.5)/N)%>%
-        mutate(logit.sqzrisk = logit(sqzrisk))%>%
-        mutate(zlogit.sqzrisk = (logit.sqzrisk-mean(logit.sqzrisk))/sd(logit.sqzrisk))
+	relp <- st_as_sf(st_read('predators_pointdatasums_studyareaonly_withTidewithHab_MKthesis20192020.shp'))%>%
+    mutate(geometry = st_centroid(geometry))%>%
+		dplyr::select(buffID, tidephs, n, st_risk,geometry)
     relp
-   	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
+  land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 
-	
+	labels = c('High', 'Low')
+  names(labels) = c('H','L')
+
 	relativePropPDdettsreceivers<-ggplot()+
-	geom_sf(data=land,col='grey75',lwd=0.5)+
-	geom_sf(data=relp,aes(size=ndetts,col=relPropPD))+
-		scale_color_viridis(name='Relative\n\ Risk')+
-		scale_size(name = 'No. of Detections')+
-		theme_bw()+
-		theme(legend.position = 'bottom', axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		guides(size = 'none')+
-		ggtitle('Predation Risk')
-
-	relativePropPDdettsreceivers
-	
-	ggsave(relativePropPDdettsreceivers,file='lemonspredators_20192020blacktipsANDbulls/descriptive_stats_and_figures/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.png',device='png',units='in',dpi=950,height=7,width=6)
-
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+	  geom_sf(data = relp, col = 'grey32', pch = 4, size = 0.75)+
+	  geom_sf(data = relp%>%filter(n!=0), col = '#b27409', pch = 1, aes(size = n))+
+	  scale_size_continuous(range = c(0,12))+
+	 	facet_wrap(~factor(tidephs, levels = c('H','L'), labels = labels), ncol=2)+
+	  theme_bw()+
+		ggtitle('Predation Risk')+
+	  theme(legend.position = 'bottom',strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 10, hjust = 0), axis.text = element_text(size =9), plot.title = element_text(size = 10))+
+	  guides(size = 'none')+
+    scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+ 
+    scale_x_continuous( breaks = c(-79.30,-79.25))
+ 
+	ggsave(relativePropPDdettsreceivers,file='chp3_ms_v6_figures_tables/relativepredatorrisk_at_receivers.png',device='png',units='in',dpi=650, height = 3.25,width=4)
 
 
 ###################
 ## Descriptive plots for Seagrasses PCA (raw data is in habitat map)
 ###################
 	
-	## seagrass PCA is standardised and mean-centred in hexdata
-	withpca<-st_as_sf(st_read('standardised_meancentred_data_for_bayes_structural_EQ_modelling_optionC_sharkiness_fishiness_habitat_July24.shp'),crs='WGS84')
+	## seagrass 
+	datasg <- hexsf %>% dplyr::select(jcode, tidephs,prp_SG,prp_mds,prp_hds, geometry)
 	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
 
-	sgPCAplot <- ggplot()+
-		geom_sf(data=land,col='grey75',lwd=0.5)+
-		geom_sf(data=withpca,aes(fill=st_PCA1),col=NA)+
-		scale_fill_viridis(name='Seagrass PCA')+
+	sgplot <- ggplot()+
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+		geom_sf(data=datasg,aes(fill=prp_SG),col=NA)+
+		scale_fill_gradientn(colors = c('#fafcfc', '#3A6C74'), limits = c(0,1), name = 'Proportion', oob = scales::squish)+
 		theme_bw()+
-		theme(legend.position = 'bottom',legend.direction = "horizontal", axis.text.x = element_text(angle = 45, vjust = 0.65))+
-		ggtitle('Seagrasses')
-	
-	ggsave(sgPCAplot,file='resource_chp3/seagrassesPCA_distributionplot_forchpater3writeup_.png',device=png,units='in',height=8,width=4.2,dpi=850)
+		ggtitle('Seagrasses')+
+	  theme(legend.position = 'bottom',axis.text = element_text(size =10), plot.title = element_text(size = 10))+
+    scale_y_continuous(limits = c(25.665,25.78), breaks = c(25.70,25.75))+
+    scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.30,-79.25))
+
+	ggsave(sgplot,file='chp3_ms_v6_figures_tables/prop_of_seagrass_forchpater3writeup_.png',device=png,units='in',height=4, width=3,dpi=950)
 
 
 ###################
 ## Three mid level predictors: seagrasses PCA, fish, relative risk 
 ###################
-
-	plot<- (sgPCAplot | maxN.plot | relativePropPDdettsreceivers) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', text = element_text(size = 8))
-	ggsave(plot,file='resource_chp3/sgPCA_maxN_and_relRisk_chp3.png',device='png',units='in',dpi=950,height=4.5)		
-
-
-###################
-## Descriptive plots for fishes
-###################
-
- #032d59 dark blue
-
-##### BEFORE BRTS - at each site for SuppInfo
-	joined_df<-read.csv('resource_chp3/bruvs_DATAFRAME_joinedWITHhabitat_feb23.csv')
-	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
-
-	swspp.histogram <- ggplot(data = joined_df, aes(x=SW_Species))+
-		geom_histogram(binwidth = 0.1,alpha=0.75, fill = '#032d59')+
-			xlab('Species Diversity Index')+
-			theme_bw()
-	gerries.histogram <- ggplot(data = joined_df, aes(x=Gerreidae))+
-		geom_histogram(binwidth = 10,alpha=0.75, fill = '#032d59')+
-			xlab('Gerredae (count)')+
-			theme_bw()
-	bruvs.hist <- swspp.histogram / gerries.histogram
-
-	ggsave(bruvs.hist,file='resource_chp3/histogram_SpeciesShannonIndex_and_Gerries_BRUVS_forSuppInfo.png',device=png,units='in',height=6,width=6,dpi=850)
-
-
-##### AFTER BRTS - at each hexagon grid cell for results
-	land<-st_as_sf(st_read('bim_onlyland_noDots.kml'),crs='WGS84')	
-	after<-st_as_sf(st_read('resource_chp3/predictions_from_simplifiedBRTs_Gerreidae_and_SWSpecies_aug23.shp'),crs='WGS84')%>%
-			dplyr::select(jcode,prp_lds,prp_mds,prp_hds,dist_cmg,dist2shore,sppsimpPD,btGerSmPD,geometry)%>%
-			mutate(fishy=(sppsimpPD*btGerSmPD),.before=geometry)
-
-	gerries <-	ggplot()+
-		geom_sf(data=after,aes(fill=btGerSmPD),col=NA)+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(0,40),guide=guide_colourbar(title='Predicted \n\ Gerridae'))+
+	{
+		#pipe for Figure 4 - remove some axes
+	fish <- ggplot()+		
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+		geom_sf(data=data,aes(fill=mxN_prd),col=NA)+
+		scale_fill_gradientn(colors = c('#fafcfc', '#2b0052'), limits = c(0,70), name = 'MaxN', oob = scales::squish)+
+		geom_sf(data=land,fill='gray75')+
 		theme_bw()+
-		theme(axis.text.x = element_text(angle = 90), legend.position="bottom",legend.direction = "horizontal")+
-		geom_sf(data=land,col='grey30',fill='grey82', alpha = 0.7)
-
-	spp <-	ggplot()+
-		geom_sf(data=after,aes(fill=sppsimpPD),col=NA)+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(0.5,1.5),guide=guide_colourbar(title='Predicted\n\ Species \n\ Diversity'))+
+		#ggtitle('Prey Availability (maxN)')+
+	 	facet_wrap(~factor(tidephs, levels = c('H','L'), labels = labels), ncol=2)+
+	  theme(legend.position = 'bottom',strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 10, hjust = 0), axis.text = element_blank(), plot.title = element_text(size = 10))+
+    scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+
+    scale_x_continuous( breaks = c(-79.30,-79.25), limits = c(-79.33,-79.21))
+  sg <-  ggplot()+
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+		geom_sf(data=datasg,aes(fill=prp_SG),col=NA)+
+		scale_fill_gradientn(colors = c('#fafcfc', '#3A6C74'), limits = c(0,1), name = 'Proportion', oob = scales::squish)+
 		theme_bw()+
-		theme(axis.text.x = element_text(angle = 90), legend.position="bottom",legend.direction = "horizontal",axis.text.y=element_blank(),axis.ticks.y = element_blank())+
-		geom_sf(data=land,col='grey30',fill='grey82', alpha = 0.7)
+		#ggtitle('Seagrasses')+
+	  theme(legend.position = 'bottom',axis.text = element_text(size =10), plot.title = element_text(size = 10))+
+    scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+
+    scale_x_continuous( breaks = c(-79.30,-79.25), limits = c(-79.33,-79.21))
+  pd <- ggplot()+
+		geom_sf(data = land, col = 'grey32', fill = 'grey75', lwd = 0.25)+
+	  geom_sf(data = relp, col = 'grey32', pch = 4, size = 0.75)+
+	  geom_sf(data = relp%>%filter(n!=0), col = '#b27409', pch = 1, aes(size = n))+
+	  scale_size_continuous(range = c(0,12))+
+	 	facet_wrap(~factor(tidephs, levels = c('H','L'), labels = labels), ncol=2)+
+	  theme_bw()+
+		#ggtitle('Predation Risk')+
+	  theme(legend.position = 'bottom',strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 10, hjust = 0), axis.text.x = element_text(size =9), axis.text.y = element_blank(), plot.title = element_text(size = 10))+
+	  guides(size = 'none')+
+    scale_y_continuous(limits = c(25.645,25.79), breaks = c(25.65,25.70, 25.75))+ 
+    scale_x_continuous( breaks = c(-79.30,-79.25), limits = c(-79.33,-79.21))
 
-	fishy <-	ggplot()+
-		geom_sf(data=after,aes(fill=fishy),col=NA)+
-		scale_fill_gradient(low='#b6e5fc',high='#3a6c74', space='Lab', aesthetics='fill',limits = c(0,40),guide=guide_colourbar(title='Calculated \n\ Fish Metric'))+
-		theme_bw()+
-		theme(axis.text.x = element_text(angle = 90), legend.position="bottom",legend.direction = "horizontal",axis.text.y=element_blank(),axis.ticks.y = element_blank())+
-		geom_sf(data=land,col='grey30',fill='grey82', alpha = 0.7)
+	theme_legend = theme(legend.box.margin = margin(-10,-5,0,-5), legend.direction = 'vertical', legend.box = 'vertical',legend.box.just = 'left', legend.spacing = unit(0, 'pt'), legend.margin = margin(0,0,0,0))
 
+	sgleg <- get_legend(sg + theme_legend)
+	fishleg <- get_legend(fish + theme_legend) 
 
-	after.plots <- gerries | spp | fishy
-	after.plots
+	leg12 <- plot_grid(sgleg,fishleg,nrow=1, align = 'hv')
+	sg2 <- sg + guides(fill = 'none')
+	fish2 <- fish + guides(fill = 'none')
+	layout <- "ABB
+						 FCC"
+	plot <-  sg2 + fish2 + pd + leg12 + plot_layout(design = layout,ncol = 3, nrow = 2, width = c(1,1,1), height = c(1,1)) & theme(plot.margin = unit(c(0,0,0,0),'cm'))
 
-	ggsave(after.plots,file='resource_chp3/postBRTpredictions_SpeciesShannonIndex_and_Gerries_and_FishyMetric_BRUVS_.png',device=png,units='in',height=8,width=10,dpi=850)
- ## QQ plots 
-	gerr.simple.qq <- ggplot(data=preds, aes(sample = btGerSmPD))+
-	stat_qq(size=1,pch=21)+
-	labs(title='Simplified Gerridae BRT', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
-	stat_qq_line(linetype=2, col='red')+
-	theme_bw()
-	gerr.simple.qq
-	ggsave(gerr.simple.qq,file = 'resource_chp3/BRTS_outputs/quantilequantile_plot_gerrsimple.png', dpi=850, unit= 'in', height = 4, width = 4)
+	ggsave(plot,file='chp3_ms_v6_figures_tables/sg_maxN_and_relRisk_chp3.png',device='png',units='in',dpi=1000)		
+ 	}  
 
-	spp.simple.qq <- ggplot(data=preds, aes(sample = sppsimpPD))+
-		stat_qq(size=1,pch=21)+
-		labs(title='Simplified Species Diversity Index BRT', subtitle = 'Quantile-Quantile plot',x='Theoretical Quantiles',y='Standardised Residuals')+
-		stat_qq_line(linetype=2, col='red')+
-		theme_bw()
-		spp.simple.qq
-		ggsave(spp.simple.qq,file = 'resource_chp3/BRTS_outputs/quantilequantile_plot_sppsimple.png', dpi=850, unit= 'in', height = 4, width = 4)
 
 
 ##############################################
 ## Table: pathway description, estimates, CI and Support ##
 ##############################################
 
-    ## need to calculate the values from the abiotics along the paths to the initial parameter, for ease
   samplesList6a <- readRDS('resource_chp3/nimblemodel_outputs/mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.RDS')
 
 	pathwayresults_table <- MCMCsummary(samplesList6a,round=5,pg0=TRUE,params='path', probs=c(0.05,0.95))%>%
@@ -395,125 +411,42 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/data_phd
 
 	save_as_image(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.png')	
 	save_as_docx(pathwayresults_table,path='resource_chp3/nimblemodel_outputs/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.docx')	
+	# for manuscript v6
+	save_as_image(pathwayresults_table,path='chp3_ms_v6_figures_tables/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.png'
+	save_as_docx(pathwayresults_table,path='chp3_ms_v6_figures_tables/pathwayresultssummary_model5a_niter5000_burn1000_chains3_Jan2025.docx')	
 
+##############################################
+## Caterpillars ##
+##############################################
+ # grab draws with gather_draws and create label for paths based on iterations and sequence of paths minN to maxN. 
+    
+    d6 <- gather_draws(samplesList6a,path[])%>%
+      group_by(.chain)%>%
+      mutate(pathID = paste0('path',rep(1:3, each=8000)))%>% 
+      mutate(pathIDnum = rep(1:3, each=8000))%>%
+      ungroup() # each path estimate for each chain (of 3) in order, starting with path[1] first estimate in chain 1 
+    
+    # use tidybayes to plot 
+    
+    caterpillars <- ggplot(d6, aes(y=reorder(pathID,pathIDnum,decreasing=T),x=.value, col = pathID))+
+      stat_pointinterval(.width=c(.50,.95),point_size=2)+
+      scale_color_manual(values = c('#3A6C74','#2b0052','#b27409'))+
+      ylab('Path ID')+
+      xlab('Estimate (mean) & CI (.5,.95)')+
+      geom_vline(xintercept=0,linetype=3)+
+      guides(col = 'none')+
+      theme_bw()
+    caterpillars  
+    ggsave(caterpillars,file='resource_chp3/nimblemodel_outputs/caterpillarsPlot_mcmcsamples_model6_niter5000_burn1000_chains3_jan2025.png',device='png',dpi=650,width=4,height=3.5,units='in')
+    ##for manuscript v6
+    ggsave(caterpillars,file='chp3_ms_v6_figures_tables/caterpillarsPlot_mcmcsamples_model6_jan2025.png',device='png',dpi=650,width=4,height=3.5,units='in')
+ 
 
 ##############################################
 ## Plots from predictions of effects from path 3 into 2020 hexdata ##
 ##############################################
-	
-	## load data 
-  hexsf <- st_as_sf(st_read('data_for_bayes_structural_EQ_modelling_DF2_HEXAGONpredictions_andBRTs_july24.shp'),crs='WGS84')%>%
-    rename(standard.hexshark = stndrd_hxs,
-      standard.hexfish = stndrd_hxf,
-      standard.hexdist2shore = stndrd_h2,
-      standard.hexdistcmg = stndrd_hxd,
-      standard.hexlowdensg = stndrd_hxl,
-      standard.hexmeddensg = stndrd_hxm,
-      standard.dist2jetty = stndrd_d2,
-      standard.depth = stndrd_d,
-      standard.sgPCA1 = st_PCA1,
-      zlogit.sqzrisk = zlgt_sq,
-      relPropPD = rlPrpPD
-      )
-
-	land <- st_as_sf(st_read('bim_onlyland_noDots.kml'), crs = 'WGS84')
-
-	p3pred <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
-	
-	## join spatial geomtry by jcode to preds
-	
-		p3.sf <- st_as_sf(left_join(hexsf, p3pred, by='jcode'))%>%
-		  dplyr::select(jcode, Mean, Low, Upp, geometry)
-
-	## path 3 plots - Absolute values for mean, upper, lower effect estimates
-
-  p3.mean <- ggplot()+
-    geom_sf(data = p3.sf, aes(fill = abs(Mean)), lwd=0)+
-    geom_sf(data = land, col = 'grey75', lwd=0.5)+
-    theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(0,5), oob = scales::squish, name = 'Absolute \n\ Effect')+
-      theme(axis.text.x = element_text(angle=45, hjust = 1))
-   ggsave(p3.mean, file = 'resource_chp3/path_inference/path3_absolute_magnitude_of_effect_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
- 
-
-  p3.mean.notabsollute <- ggplot()+
-    geom_sf(data = p3.sf, aes(fill = (Mean)), lwd=0)+
-    geom_sf(data = land, col = 'grey75', lwd=0.5)+
-    theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1,0.5), oob = scales::squish, name = 'Mean')+
-      theme(axis.text.x = element_text(angle=45, hjust = 1))
-   ggsave(p3.mean.notabsollute, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_model5_july24.png', device = 'png', unit = 'in', dpi = 900, width = 5)
- 
-
-	p3.lower <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = (Low)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1, 0.5), oob = scales::squish, name = 'Prediction')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1),  legend.direction = "horizontal", legend.position = "bottom")+
-    labs(subtitle = 'Lower')
-	 p3.lower
-
-	p3.upper <- ggplot()+
-		geom_sf(data = p3.sf, aes(fill = (Upp)), lwd=0)+
-		geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	  theme_bw()+
-    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1, 0.5), oob = scales::squish, name = 'Prediction')+
-	  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.direction = "horizontal", legend.position = "bottom")+
-    labs(subtitle = 'Upper')
-    p3.upper
-
-  # upper and lower side by side 
-    p3upper.noyaxis <- p3.upper + theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())
-    p3.hdis.wide.axescollected <- (p3.lower | p3upper.noyaxis) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
- 		ggsave(p3.hdis.wide.axescollected, file = 'resource_chp3/path_inference/path3_HDI_WIDEpanel__estimates_spatial_july24.png', device = 'png', unit = 'in', dpi = 900, width = 8)
-
-	## path 3 prediction plot, mean, with 2 receivers of highest predaiton risk score and the jetties marked 
-
-		relp <- st_as_sf(st_read('lemonspredators_20192020blacktipsANDbulls/relativepredatorrisk_at_receivers_April2019December2020_lemonsANDblacktips.shp'))%>%
-			slice_max(relPropPD, n = 2)
-		jettys<- st_as_sf(st_read('boatlaunchesBimini.kml'),crs='WGS84')
-    
-    #correction from internal examiner: add relative proportion of detections of juveniles to path inference figure.
-    #summarise across tidal phases (L/H)
-    names(pointdata)
-    point.sf <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'),crs = 'WGS84')
-   	buffer.sf <- st_as_sf(st_read('pointdata_juvlemons_withAllCoV_MKthesis20192020.shp'),crs='WGS84')%>%
-   			distinct(buffID, .keep_all = TRUE)%>%
-   				dplyr::select(buffID, geometry)
-    total = sum(point.sf$n_juv)
-    sum.dett <- pointdata %>% 
-      dplyr::select(buffID, n_juv, tide) %>%
-      group_by(buffID)%>%
-      summarise(n = sum(n_juv))
-    sum.sf <- left_join(buffer.sf, sum.dett) %>%
-    		st_as_sf()%>%
-    		mutate(geometry = st_centroid(geometry))%>%
-    		st_crop(c(xmin = -79.23, xmax=-79.31, ymin = 25.68, ymax = 25.78))%>%
-    		st_as_sf()
-
-    p3.corrections <- readRDS('resource_chp3/path_inference/path3_means_andHDI_at_hexagons_model5a_july2024.RData')
-    p3.sf <- st_as_sf(left_join(hexsf, p3.corrections, by='jcode'))%>%
-    dplyr::select(jcode, Mean, Low, Upp, geometry)
-
-   	p3.joined <- st_join(p3.sf, sum.dett, st_nearest_feature) 
 
 
-	  p3.mean.corrections <- ggplot()+
-	    geom_sf(data = p3.joined, aes(fill = Mean),lwd=0)+
-	    geom_sf(data = land, col = 'grey75', lwd=0.5)+
-	    geom_sf(data = relp, col = 'purple3', pch = 19, size = 4.25)+
-			geom_sf(data = jettys, pch = 24, size = 3, col='goldenrod1',fill='goldenrod1')+
-	    theme_bw()+
-	    scale_fill_gradientn(colors = c('#fafcfc', '#073B46'), limits = c(-1,0.5), oob = scales::squish, name = 'Mean')+
-	    geom_sf(data = sum.sf,  shape = 16, col = '#000000', size = 0.5)+
-		  geom_sf(data = sum.sf, aes(size = n), shape = 16, col = 'grey25',alpha = 0.75)+
-		  scale_size_continuous(range = c(1, 12), breaks = c(0, 1000, 5000, 10000), name = "Detections \n(count)", labels = c(0, 1000, 5000, 10000))+
-	    scale_y_continuous(limits = c(25.67,25.78), breaks = c(25.68,25.72,25.76))+
-	    scale_x_continuous(limits = c(-79.31,-79.23), breaks = c(-79.3,-79.28,-79.26,-79.24))
-
-	   ggsave(p3.mean.corrections, file = 'resource_chp3/path_inference/path3_mean_estimates_spatial_withtop2RelRisk_jetties_model5_CORRECTIONS.png', device = 'png', unit = 'in', dpi = 900, width = 5)
- 
 
 
 
